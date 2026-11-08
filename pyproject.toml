@@ -1,0 +1,19 @@
+
+[project]
+name = "pi-agent-ribo"
+version = "2.0.0"
+description = "Pi Agent — Native macOS Services (Sprachsteuerung + TTS/STT + Bildgenerierung)"
+requires-python = ">=3.14"
+dependencies = [
+    "sounddevice==0.5.6",
+    "numpy==2.5.4",
+    "requests==2.34.2",
+    "pocket-tts==4.0.1",
+    "mlx-whisper==0.4.3",
+    "mlx==0.32.4; sys_platform == 'darwin'",
+    "mlx==0.32.2; sys_platform == 'linux'",
+    "mflux==0.24.0",
+]
+
+[project.scripts]
+hey-ribo = "hey-ribo:main"

@@ -1,0 +1,252 @@
+// pi-ollama - native Ollama provider extension for pi coding agent.
+//
+// Registers an "ollama" provider backed by Ollama's /api/chat endpoint
+// directly, so each request carries what the OpenAI-compatible endpoint can't
+// (num_ctx, think, keep_alive, truncate:false). Also wires up the startup
+// helpers: offering to start Ollama, API-key approval, and warm-up.
+//
+// Install:  pi install npm:pi-ollama
+// Refresh:  /ollama-refresh
+// Status:   /ollama-status
+// Details:  /ollama-info <model-id>
+// Warm-up:  /ollama-warm-up
+//
+// Environment variables:
+//   OLLAMA_HOST                  - Ollama server host[:port]. Default: localhost:11434
+//   OLLAMA_API_KEY               - Bearer token, sent only to OLLAMA_HOST once approved
+//   OLLAMA_NATIVE_WARM           - Warm-up. On by default; 0 switches it off
+//   OLLAMA_NATIVE_DEBUG          - Set to "1" to enable debug logging (writes to a file)
+//   OLLAMA_NATIVE_DEBUG_LOG      - Override default log path
+//                                  (default: ~/.pi/agent/cache/pi-ollama-debug.log)
+//   OLLAMA_NATIVE_DUMP_DIR       - Path to write req/res dump files for diagnostics
+//   OLLAMA_NATIVE_GHOST_RETRIES  - Ghost-token retry count. Default: 2
+//   OLLAMA_NATIVE_THROUGHPUT     - tok/s telemetry. On by default; 0 switches it off
+
+import { loadSettings, type OllamaExtensionSettings } from "./settings.js";
+import { discoverModels, loadCache, saveCache, type DiscoveredModel } from "./discovery.js";
+import { streamOllama } from "./provider.js";
+import { registerApiKeyApproval } from "./api-key-approval.js";
+import { createOllamaLauncher, registerAutostart } from "./autostart.js";
+import { registerCommands } from "./commands.js";
+import { OLLAMA_DEBUG, OLLAMA_DEBUG_LOG } from "./debug.js";
+import { registerThroughputStatus, type StatusPi } from "./status.js";
+import { GenerationTelemetry } from "./telemetry.js";
+import { toThinkingLevelMap, type ThinkingLevelMap } from "./thinking.js";
+import { createReadySignal, registerWarmup } from "./warm.js";
+
+// ============================================================================
+// Minimal structural interfaces for the pi extension API.
+// The real types come from @earendil-works/pi-coding-agent at runtime.
+// ============================================================================
+
+interface ProviderModel {
+	id: string;
+	name: string;
+	api: string;
+	baseUrl: string;
+	reasoning: boolean;
+	thinkingLevelMap?: ThinkingLevelMap;
+	input: ("text" | "image")[];
+	cost: { input: number; output: number; cacheRead: number; cacheWrite: number };
+	contextWindow: number;
+	maxTokens: number;
+	compat: {
+		supportsDeveloperRole: boolean;
+		supportsReasoningEffort: boolean;
+	};
+}
+
+interface ExtensionAPI extends StatusPi {
+	// pi hands every event handler the full context; each module declares only
+	// the slice it uses, so this accepts any of their handler shapes.
+	on?: (event: string, handler: (event: never, ctx: never) => unknown) => void;
+	registerProvider(
+		name: string,
+		config: {
+			api: string;
+			baseUrl: string;
+			apiKey?: string;
+			streamSimple: (
+				model: unknown,
+				context: unknown,
+				options?: unknown,
+			) => unknown;
+			models: ProviderModel[];
+		},
+	): void;
+	unregisterProvider(name: string): void;
+	registerCommand(
+		name: string,
+		config: {
+			description: string;
+			// pi also passes the command context; each module declares its own slice.
+			handler: (args: string, ctx: never) => void | Promise<void>;
+		},
+	): void;
+}
+
+// AssistantMessageEventStream is the class pi uses for all streaming responses.
+// We import it at runtime from @earendil-works/pi-ai — the extension receives the
+// resolved package from pi's module loader so this works without the package
+// being a direct dependency of pi-ollama.
+let StreamClass: new () => { push(event: unknown): void; end(): void };
+
+async function resolveStreamClass() {
+	if (StreamClass) return;
+	let mod: unknown;
+	try {
+		mod = await import("@earendil-works/pi-ai");
+	} catch (e) {
+		throw new Error(
+			"pi-ollama: could not import @earendil-works/pi-ai. " +
+				`Ensure it's available in pi's module resolution path. (${String(e)})`,
+		);
+	}
+	// biome-ignore lint/suspicious/noExplicitAny: dynamic import path
+	const cls = (mod as any).AssistantMessageEventStream;
+	if (typeof cls !== "function") {
+		throw new Error(
+			"pi-ollama: @earendil-works/pi-ai loaded but did not export AssistantMessageEventStream. " +
+				"This may indicate an incompatible pi-ai version.",
+		);
+	}
+	StreamClass = cls;
+}
+
+// ============================================================================
+// Extension factory
+// ============================================================================
+
+export default async function (pi: ExtensionAPI): Promise<void> {
+	const settings = loadSettings();
+
+	// One-time stderr notice when debug logging is enabled — printed at
+	// extension load before pi's TUI begins streaming, so safe to write here.
+	// All subsequent dbg() output goes to the log file to avoid corrupting
+	// the TUI's carriage-return redraws.
+	if (OLLAMA_DEBUG) {
+		process.stderr.write(
+			`[pi-ollama] Debug logging → ${OLLAMA_DEBUG_LOG} ` +
+				`(override with OLLAMA_NATIVE_DEBUG_LOG=/path)\n`,
+		);
+	}
+
+	await resolveStreamClass();
+
+	// tok/s telemetry: the provider reports into this, the status handlers pull
+	// from it. Undefined = feature switched off, and the provider reports nowhere.
+	const telemetry = settings.throughput ? new GenerationTelemetry() : undefined;
+	if (telemetry) registerThroughputStatus(pi, telemetry);
+
+	// Register the provider with the current model list.
+	// On first call there's nothing to unregister; on refresh we attempt to
+	// unregister and tolerate failure (older pi versions may lack the method —
+	// duplicate registrations are preferable to a hard crash).
+	let providerRegistered = false;
+	const registerProvider = (currentModels: DiscoveredModel[]) => {
+		if (providerRegistered) {
+			try {
+				pi.unregisterProvider("ollama");
+			} catch (e) {
+				process.stderr.write(
+					`[pi-ollama] unregisterProvider failed (${String(e)}). ` +
+						`Continuing — registration may end up duplicated.\n`,
+				);
+			}
+		}
+		pi.registerProvider("ollama", {
+			api: "ollama-native",
+			baseUrl: settings.baseUrl,
+			apiKey: "ollama", // dummy — streamSimple doesn't auth, but pi may validate presence
+			streamSimple: (model, context, options) =>
+				streamOllama(
+					model as Parameters<typeof streamOllama>[0],
+					context as Parameters<typeof streamOllama>[1],
+					options as Parameters<typeof streamOllama>[2],
+					settings,
+					StreamClass,
+					telemetry,
+				),
+			models: currentModels.map((m) => toProviderModel(m, settings)),
+		});
+		providerRegistered = true;
+	};
+
+	// The one refresh path, shared by startup and /ollama-refresh: discover
+	// live, keep the list for the next startup, register it.
+	let models: DiscoveredModel[] = [];
+	const ready = createReadySignal();
+	const refreshModels = async (): Promise<DiscoveredModel[]> => {
+		const fresh = await discoverModels(settings);
+		saveCache(fresh);
+		models = fresh;
+		registerProvider(fresh);
+		ready.markReady();
+		return fresh;
+	};
+
+	// Discovery's per-request timeouts bound this wait. If Ollama can't be
+	// reached, fall back to the cached list so the provider still registers,
+	// and keep the reason: autostart offers to start a local server when
+	// nothing was listening.
+	let startupFailure: unknown;
+	try {
+		await refreshModels();
+	} catch (e) {
+		startupFailure = e;
+		models = loadCache();
+		registerProvider(models);
+		process.stderr.write(
+			models.length > 0
+				? `[pi-ollama] Ollama not reachable (${String(e)}). ` +
+						`Loaded ${models.length} model(s) from cache. Run /ollama-refresh when Ollama is available.\n`
+				: `[pi-ollama] Ollama not reachable and no cache available (${String(e)}). ` +
+						`Run /ollama-refresh when Ollama is available.\n`,
+		);
+	}
+
+	registerCommands(pi, settings, () => models, refreshModels, registerProvider);
+	registerAutostart(pi, settings, {
+		refresh: refreshModels,
+		startupFailure,
+		launcher: createOllamaLauncher(settings),
+	});
+	registerApiKeyApproval(pi, settings, refreshModels, process.env.OLLAMA_API_KEY);
+	registerWarmup(pi, settings, { whenReady: ready.whenReady });
+}
+
+// ============================================================================
+// Model shape conversion
+// ============================================================================
+
+function toProviderModel(
+	m: DiscoveredModel,
+	settings: OllamaExtensionSettings,
+): ProviderModel {
+	// The registered contextWindow drives both the wire request (num_ctx) AND
+	// pi's UI context-usage counter. Compute the effective value once here so
+	// both views stay consistent. Resolution:
+	//   1. settings.contextLength — user override (slash command or env var)
+	//   2. min(discovered window, settings.numCtx) — capped default
+	const effectiveContextWindow =
+		settings.contextLength ?? Math.min(m.contextWindow, settings.numCtx);
+	// The model's own thinking values drive pi's level picker and the `think`
+	// value on the wire (gh#13). Absent = legacy on/off for every level.
+	const thinkingLevelMap = toThinkingLevelMap(m.thinking);
+	return {
+		id: m.id,
+		name: m.name,
+		api: "ollama-native",
+		baseUrl: settings.baseUrl,
+		reasoning: m.reasoning,
+		...(thinkingLevelMap && { thinkingLevelMap }),
+		input: m.vision ? ["text", "image"] : ["text"],
+		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+		contextWindow: effectiveContextWindow,
+		maxTokens: m.maxTokens,
+		compat: {
+			supportsDeveloperRole: false,
+			supportsReasoningEffort: false,
+		},
+	};
+}

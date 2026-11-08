@@ -1,0 +1,108 @@
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:v0.6.12
+    ports:
+      - "3000:8080"
+    environment:
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+    volumes:
+      - openwebui_data:/app/backend/data
+    restart: unless-stopped
+
+  ha-service:
+    build: ./ha-service
+    environment:
+      - HA_URL=http://homeassistant:8123
+      - HA_TOKEN=${HA_TOKEN}
+    depends_on:
+      - homeassistant
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  pi-agent:
+    build: ./pi-agent
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      - TZ=${TZ:-Europe/Berlin}
+      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - OLLAMA_API_KEY=${OLLAMA_API_KEY:-ollama}
+      # PI_MODEL leer lassen wenn ungesetzt → server.js wählt den
+      # provider-passenden Default (qwen3.8:27b bzw. claude-sonnet-5).
+      # Bilder laufen über dasselbe multimodale PI_MODEL, kein separates VISION_MODEL nötig.
+      - PI_MODEL=${PI_MODEL:-}
+      - THINKING_LEVEL=${THINKING_LEVEL:-medium}
+      - OLLAMA_NUM_CTX=16384
+      - HA_SERVICE_URL=http://ha-service:8082
+      # hey-ribo (Musik + Timer + TTS). RIBO_SERVICE_URL = sprechender Name.
+      - RIBO_SERVICE_URL=http://host.docker.internal:8085
+      - MUSIC_SERVICE_URL=http://host.docker.internal:8085
+      - WEATHER_LOCATION=${WEATHER_LOCATION:-52.52,13.405}
+      - NEWS_FEEDS=${NEWS_FEEDS:-tagesschau:https://www.tagesschau.de/xml/rss2,spiegel:https://www.spiegel.de/schlagzeilen/tops/index.rss}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - IMAGEGEN_SERVICE_URL=${IMAGEGEN_SERVICE_URL:-http://host.docker.internal:8086}
+      # Mac-Pfad zum workspace (der imagegen-service läuft nativ am Mac und braucht
+      # absolute Host-Pfade für img2img). Muss auf den echten Pfad zeigen.
+      - HOST_WORKSPACE_PATH=${HOST_WORKSPACE_PATH:-/Users/enricostarke/Desktop/pi-agent/workspace}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - OLLAMA_CONTEXT_LENGTH=${OLLAMA_CONTEXT_LENGTH}
+    volumes:
+      - ./workspace:/workspace
+    depends_on:
+      ha-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  pi-telegram:
+    build: ./pi-telegram
+    environment:
+      - TZ=${TZ:-Europe/Berlin}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - AGENT_URL=http://pi-agent:8080
+      - RIBO_URL=${RIBO_URL:-http://host.docker.internal:8085}
+    volumes:
+      - ./workspace:/workspace
+    depends_on:
+      - pi-agent
+    restart: unless-stopped
+
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    ports:
+      - "8123:8123"
+    volumes:
+      - ha_config:/config
+    environment:
+      - TZ=Europe/Berlin
+    restart: unless-stopped
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+
+volumes:
+  openwebui_data:
+  ha_config:
+
+networks:
+  default:
+    name: pi-agent_default

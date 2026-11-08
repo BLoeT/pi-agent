@@ -1,0 +1,410 @@
+// Extension commands: /ollama-status, /ollama-refresh, /ollama-info,
+// /ollama-context, /ollama-keep-alive, /ollama-stats
+//
+// Output is delivered via ctx.ui.notify() — the TUI-aware notification API
+// from pi's ExtensionCommandContext. Direct console.log to stdout corrupts
+// pi's carriage-return cursor positioning, especially on the first command
+// of a session. notify() routes through pi's render loop so output integrates
+// cleanly with the TUI regardless of when it fires.
+
+import { loadPersistedConfig, savePersistedConfig } from "./config.js";
+import type { DiscoveredModel } from "./discovery.js";
+import { errorText } from "./errors.js";
+import { listModels, runningModels, showModel } from "./ollama-client.js";
+import { type ApiKeyStatus, parseKeepAlive, type OllamaExtensionSettings } from "./settings.js";
+import {
+	formatSessionStats,
+	readGenerationRecords,
+	summarizeByModel,
+} from "./stats.js";
+import { parseThinking, thinkingSummary } from "./thinking.js";
+
+// Minimal structural type for the ctx.ui surface we use.
+// The real type is ExtensionCommandContext from @earendil-works/pi-coding-agent.
+interface CommandUIContext {
+	ui: {
+		notify(message: string, type?: "info" | "warning" | "error"): void;
+		select(
+			title: string,
+			options: string[],
+			opts?: { signal?: AbortSignal; timeout?: number },
+		): Promise<string | undefined>;
+		input(
+			title: string,
+			placeholder?: string,
+			opts?: { signal?: AbortSignal; timeout?: number },
+		): Promise<string | undefined>;
+	};
+	/** Read-only session access. Optional: absent on older pi versions. */
+	sessionManager?: { getEntries?: () => unknown[] };
+}
+
+// Minimal structural interface for the pi ExtensionAPI — only the methods
+// this module calls.
+interface Pi {
+	registerCommand(
+		name: string,
+		config: {
+			description: string;
+			handler: (args: string, ctx: CommandUIContext) => void | Promise<void>;
+		},
+	): void;
+}
+
+// What /ollama-status says about OLLAMA_API_KEY. Never the key itself; and
+// nothing at all when no key is set, which is the normal local setup.
+const API_KEY_STATUS_LINES: Record<ApiKeyStatus, string | undefined> = {
+	none: undefined,
+	approved: "API key: approved for this host (OLLAMA_API_KEY)",
+	unapproved:
+		"API key: set in OLLAMA_API_KEY but not approved for this host - not sent. Restart pi to approve it.",
+};
+
+/** One model as a row: id, context window and capability flags. */
+function formatModelRow(m: DiscoveredModel): string {
+	const flags = [m.tools && "tools", m.vision && "vision", m.reasoning && "reasoning"]
+		.filter(Boolean)
+		.join(", ");
+	return `${m.id.padEnd(32)} ctx:${m.contextWindow.toLocaleString()}  [${flags || "basic"}]`;
+}
+
+// Called from index.ts to register all commands.
+// The callbacks give commands access to the current model list and the one
+// refresh path (discover, cache, register) without a circular dependency.
+export function registerCommands(
+	pi: Pi,
+	settings: OllamaExtensionSettings,
+	getModels: () => DiscoveredModel[],
+	refresh: () => Promise<DiscoveredModel[]>,
+	reregisterProvider: (models: DiscoveredModel[]) => void,
+): void {
+	pi.registerCommand("ollama-status", {
+		description: "Show Ollama connection status and currently loaded models",
+		handler: async (_args, ctx) => {
+			const baseUrl = settings.baseUrl;
+			const lines: string[] = [];
+			lines.push(`Ollama base URL: ${baseUrl}`);
+			lines.push(
+				settings.keepAlive !== undefined
+					? `keep_alive: ${settings.keepAlive} (override — sent on every request)`
+					: "keep_alive: defer to server (default)",
+			);
+			lines.push(`Warm-up: ${settings.warm ? "on" : "off"} (/ollama-warm-up to change)`);
+			const keyLine = API_KEY_STATUS_LINES[settings.apiKeyStatus];
+			if (keyLine) lines.push(keyLine);
+			if (settings.startedOllamaStopHint) {
+				lines.push(`Started by pi at startup. ${settings.startedOllamaStopHint}`);
+			}
+
+			// Listing models confirms Ollama is reachable and answering.
+			try {
+				await listModels(settings);
+				const registered = getModels();
+				lines.push(
+					`✓ Ollama reachable — ${registered.length} model(s) registered`,
+				);
+				for (const m of registered) lines.push(`  ${formatModelRow(m)}`);
+			} catch (e) {
+				ctx.ui.notify(`Ollama check failed at ${baseUrl}: ${errorText(e)}`, "error");
+				return;
+			}
+
+			// Show currently loaded models via /api/ps (optional).
+			try {
+				const running = await runningModels(settings);
+				if (running.length > 0) {
+					lines.push(``, `Currently loaded in memory:`);
+					for (const m of running) {
+						const vram = m.size_vram
+							? ` (${(m.size_vram / 1e9).toFixed(1)} GB VRAM)`
+							: "";
+						lines.push(`  ${m.name}${vram}`);
+					}
+				} else {
+					lines.push(``, `No models currently loaded in memory`);
+				}
+			} catch {
+				// /api/ps is optional — older Ollama versions may not have it.
+			}
+
+			ctx.ui.notify(lines.join("\n"), "info");
+		},
+	});
+
+	pi.registerCommand("ollama-refresh", {
+		description:
+			"Re-discover models from Ollama and re-register the provider",
+		handler: async (_args, ctx) => {
+			try {
+				const models = await refresh();
+				ctx.ui.notify(
+					`Refreshed model list from ${settings.baseUrl} — ${models.length} model(s) registered`,
+					"info",
+				);
+			} catch (e) {
+				ctx.ui.notify(`Refresh failed: ${errorText(e)}`, "error");
+			}
+		},
+	});
+
+	pi.registerCommand("ollama-info", {
+		description:
+			"Show capability details for an Ollama model. Usage: /ollama-info [model-id] (omit to pick from list)",
+		handler: async (args, ctx) => {
+			const typed = args.trim();
+			let chosen: string | undefined;
+
+			if (typed) {
+				chosen = typed;
+			} else {
+				const registered = getModels();
+				if (registered.length === 0) {
+					ctx.ui.notify(
+						"No Ollama models registered. Run /ollama-refresh first.",
+						"warning",
+					);
+					return;
+				}
+				// Build enriched labels matching /ollama-status's row format,
+				// with a label→id map so the picker returns a clean model id.
+				const labelToId = new Map<string, string>();
+				const options: string[] = [];
+				for (const m of registered) {
+					const label = formatModelRow(m);
+					labelToId.set(label, m.id);
+					options.push(label);
+				}
+				const selected = await ctx.ui.select(
+					"Select a model to inspect",
+					options,
+				);
+				if (!selected) {
+					// User cancelled the picker — quiet exit, no notify.
+					return;
+				}
+				chosen = labelToId.get(selected) ?? selected;
+			}
+
+			try {
+				const show = await showModel(settings, chosen);
+				// Which pi thinking levels this model gets, and anything it
+				// accepts that pi has no level name for (gh#13).
+				const thinking = parseThinking(show.thinking);
+				const summary =
+					thinking || show.capabilities?.includes("thinking")
+						? `${thinkingSummary(thinking)}\n\n`
+						: "";
+				ctx.ui.notify(
+					`${chosen}\n\n${summary}${JSON.stringify(show, null, 2)}`,
+					"info",
+				);
+			} catch (e) {
+				ctx.ui.notify(`Couldn't show ${chosen}: ${errorText(e)}`, "error");
+			}
+		},
+	});
+
+	pi.registerCommand("ollama-context", {
+		description:
+			"Set the num_ctx value pi-ollama sends to /api/chat. Persistent across restarts.",
+		handler: async (_args, ctx) => {
+			const PRESETS: Array<{ label: string; value: number }> = [
+				{ label: "4,096 tokens (low memory)", value: 4096 },
+				{ label: "8,192 tokens", value: 8192 },
+				{ label: "16,384 tokens", value: 16384 },
+				{ label: "32,768 tokens (current default cap)", value: 32768 },
+				{ label: "65,536 tokens", value: 65536 },
+				{ label: "131,072 tokens", value: 131072 },
+			];
+			const USE_DEFAULT = "Use system default (model maximum, capped at 32,768)";
+			const CUSTOM = "Custom value…";
+
+			const current = settings.contextLength;
+			const currentNote =
+				current !== undefined
+					? `Current override: ${current.toLocaleString()} tokens`
+					: "Current: system default (no override)";
+
+			const options = [
+				...PRESETS.map((p) => p.label),
+				USE_DEFAULT,
+				CUSTOM,
+			];
+
+			const selected = await ctx.ui.select(
+				`Context length for /api/chat — ${currentNote}`,
+				options,
+			);
+			if (!selected) {
+				// User cancelled — quiet exit.
+				return;
+			}
+
+			let newValue: number | undefined;
+
+			if (selected === USE_DEFAULT) {
+				newValue = undefined;
+			} else if (selected === CUSTOM) {
+				const raw = await ctx.ui.input(
+					"Enter context length in tokens",
+					"e.g., 16384",
+				);
+				if (!raw) {
+					// User cancelled the input — quiet exit.
+					return;
+				}
+				const n = parseInt(raw.trim(), 10);
+				if (!Number.isFinite(n) || n <= 0) {
+					ctx.ui.notify(
+						"Invalid context length. Must be a positive integer.",
+						"error",
+					);
+					return;
+				}
+				newValue = n;
+			} else {
+				const matched = PRESETS.find((p) => p.label === selected);
+				if (!matched) {
+					ctx.ui.notify("Unrecognized selection.", "error");
+					return;
+				}
+				newValue = matched.value;
+			}
+
+			// Persist to disk AND mutate the shared settings object so the
+			// next /api/chat request picks up the new value without a relaunch.
+			const persisted = loadPersistedConfig();
+			if (newValue === undefined) {
+				delete persisted.contextLength;
+			} else {
+				persisted.contextLength = newValue;
+			}
+			savePersistedConfig(persisted);
+			settings.contextLength = newValue;
+
+			// Re-register the provider so pi's model registry (and the UI
+			// context-usage counter) reflects the new effective contextWindow.
+			// Without this the wire request would carry the new num_ctx but the
+			// UI would keep showing the discovered max — a misleading mismatch.
+			reregisterProvider(getModels());
+
+			if (newValue === undefined) {
+				ctx.ui.notify(
+					"Context length override cleared. Using system default (model maximum, capped at 32,768 tokens).",
+					"info",
+				);
+			} else {
+				ctx.ui.notify(
+					`Context length set to ${newValue.toLocaleString()} tokens. Applies to the next /api/chat request and persists across pi launches.`,
+					"info",
+				);
+			}
+		},
+	});
+
+	pi.registerCommand("ollama-keep-alive", {
+		description:
+			"Set the keep_alive pi-ollama sends to /api/chat. Default: defer to the Ollama server's setting. Persistent across restarts.",
+		handler: async (_args, ctx) => {
+			const DEFER = "Defer to the Ollama server's setting (default)";
+			const PRESETS: Array<{ label: string; value: string | number }> = [
+				{ label: "-1 (keep the model loaded forever)", value: -1 },
+				{ label: "5m (Ollama's factory default)", value: "5m" },
+				{ label: "30m", value: "30m" },
+				{ label: "1h", value: "1h" },
+			];
+			const CUSTOM = "Custom value…";
+
+			const current = settings.keepAlive;
+			const currentNote =
+				current !== undefined
+					? `Current override: ${current}`
+					: "Current: defer to server (no override sent)";
+
+			const selected = await ctx.ui.select(
+				`keep_alive for /api/chat — ${currentNote}`,
+				[DEFER, ...PRESETS.map((p) => p.label), CUSTOM],
+			);
+			if (!selected) {
+				// User cancelled — quiet exit.
+				return;
+			}
+
+			let newValue: string | number | undefined;
+
+			if (selected === DEFER) {
+				newValue = undefined;
+			} else if (selected === CUSTOM) {
+				const raw = await ctx.ui.input(
+					"Enter keep_alive",
+					'e.g., "10m", "1h30m", or -1 to keep loaded forever',
+				);
+				if (!raw) {
+					// User cancelled the input — quiet exit.
+					return;
+				}
+				const parsed = parseKeepAlive(raw);
+				if (parsed === undefined) {
+					ctx.ui.notify(
+						'Invalid keep_alive. Use a duration like "5m" / "1h30m" or an integer (seconds; -1 = forever).',
+						"error",
+					);
+					return;
+				}
+				newValue = parsed;
+			} else {
+				const matched = PRESETS.find((p) => p.label === selected);
+				if (!matched) {
+					ctx.ui.notify("Unrecognized selection.", "error");
+					return;
+				}
+				newValue = matched.value;
+			}
+
+			// Persist to disk AND mutate the shared settings object so the
+			// next /api/chat request picks up the new value without a relaunch.
+			// (No provider re-registration needed — keep_alive doesn't affect
+			// the model registry, unlike /ollama-context.)
+			const persisted = loadPersistedConfig();
+			if (newValue === undefined) {
+				delete persisted.keepAlive;
+			} else {
+				persisted.keepAlive = newValue;
+			}
+			savePersistedConfig(persisted);
+			settings.keepAlive = newValue;
+
+			if (newValue === undefined) {
+				ctx.ui.notify(
+					"keep_alive override cleared. The field is omitted from requests — the Ollama server's own setting (OLLAMA_KEEP_ALIVE) decides.",
+					"info",
+				);
+			} else {
+				ctx.ui.notify(
+					`keep_alive set to ${newValue}. Applies to the next /api/chat request and persists across pi launches. Note: this OVERRIDES the server's OLLAMA_KEEP_ALIVE.`,
+					"info",
+				);
+			}
+		},
+	});
+
+	pi.registerCommand("ollama-stats", {
+		description: "Show tok/s throughput for this session's Ollama generations",
+		handler: (_args, ctx) => {
+			if (!settings.throughput) {
+				ctx.ui.notify(
+					"Throughput telemetry is switched off (OLLAMA_NATIVE_THROUGHPUT=0). Unset it and relaunch pi to record generations.",
+					"info",
+				);
+				return;
+			}
+			// All entries, not just the current branch: throughput describes the
+			// machine and the model, whichever branch the work happened on.
+			const entries = ctx.sessionManager?.getEntries?.() ?? [];
+			ctx.ui.notify(
+				formatSessionStats(summarizeByModel(readGenerationRecords(entries))),
+				"info",
+			);
+		},
+	});
+}

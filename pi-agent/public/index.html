@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ribo Chat</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #1a1a2e;
+      --surface: #16213e;
+      --surface-light: #1f3051;
+      --accent: #4fc3f7;
+      --text: #e8e8e8;
+      --text-dim: #9e9e9e;
+      --user-bg: #0f3460;
+      --bot-bg: #1f3051;
+      --input-bg: #0f3460;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 16px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--surface-light);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    header .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    header h1 {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    #reset-btn {
+      background: var(--surface-light);
+      border: none;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 18px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    #reset-btn:hover { opacity: 0.7; }
+
+    header .status {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: var(--user-bg);
+      border-bottom-right-radius: 4px;
+    }
+
+    .message.bot {
+      align-self: flex-start;
+      background: var(--bot-bg);
+      border-bottom-left-radius: 4px;
+    }
+
+    .message.bot .label {
+      font-size: 11px;
+      color: var(--accent);
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+
+    .message.error {
+      align-self: flex-start;
+      background: #3d1515;
+      border-left: 3px solid #e57373;
+    }
+
+    .message .timestamp {
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-top: 6px;
+      text-align: right;
+      font-weight: 400;
+    }
+
+    .typing {
+      align-self: flex-start;
+      padding: 12px 16px;
+      background: var(--bot-bg);
+      border-radius: var(--radius);
+      border-bottom-left-radius: 4px;
+    }
+
+    .typing .dots {
+      display: flex;
+      gap: 4px;
+    }
+
+    .typing .dots span {
+      width: 8px;
+      height: 8px;
+      background: var(--text-dim);
+      border-radius: 50%;
+      animation: bounce 1.4s infinite;
+    }
+
+    .typing .dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing .dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-6px); }
+    }
+
+    /* Thinking-Block (Reasoning, eingeblendet) */
+    .thinking {
+      align-self: flex-start;
+      max-width: 80%;
+      padding: 10px 14px;
+      background: #14203a;
+      border-left: 3px solid #6a4fc3;
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--text-dim);
+      font-style: italic;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      animation: fadeIn 0.2s ease;
+    }
+    .thinking .label {
+      font-size: 10px;
+      color: #6a4fc3;
+      margin-bottom: 4px;
+      font-weight: 600;
+      font-style: normal;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Tool-Call-Block */
+    .tool-call {
+      align-self: flex-start;
+      max-width: 80%;
+      padding: 8px 14px;
+      background: #0f2a1f;
+      border-left: 3px solid #4caf7d;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #8fe0b8;
+      font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      animation: fadeIn 0.2s ease;
+    }
+    .tool-call .label {
+      font-size: 10px;
+      color: #4caf7d;
+      margin-bottom: 2px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Queue-Indikator */
+    .queue-indicator {
+      align-self: flex-start;
+      padding: 8px 14px;
+      background: #2a2a1a;
+      border-left: 3px solid #d4a843;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #d4a843;
+      animation: fadeIn 0.2s ease;
+    }
+
+    #input-area {
+      padding: 16px 20px;
+      background: var(--surface);
+      border-top: 1px solid var(--surface-light);
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    #input-area textarea {
+      flex: 1;
+      padding: 12px 16px;
+      background: var(--input-bg);
+      border: 1px solid var(--surface-light);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+      resize: none;
+      min-height: 44px;
+      max-height: 160px;
+      line-height: 1.4;
+      font-family: inherit;
+    }
+    #input-area textarea:focus {
+      border-color: var(--accent);
+    }
+    #input-area textarea::placeholder {
+      color: var(--text-dim);
+    }
+
+    #input-area input:focus {
+      border-color: var(--accent);
+    }
+
+    #input-area input::placeholder {
+      color: var(--text-dim);
+    }
+
+    #input-area button {
+      padding: 12px 20px;
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    #input-area button:hover { opacity: 0.85; }
+    #input-area button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Stop-Button (nur während Verarbeitung sichtbar) */
+    #stop-btn {
+      background: #e57373;
+      color: #000;
+      display: none;
+    }
+    #stop-btn.visible { display: inline-block; }
+
+    /* Scrollbar */
+    #messages::-webkit-scrollbar { width: 6px; }
+    #messages::-webkit-scrollbar-track { background: transparent; }
+    #messages::-webkit-scrollbar-thumb { background: var(--surface-light); border-radius: 3px; }
+
+    /* Mobile */
+    @media (max-width: 600px) {
+      .message { max-width: 90%; }
+      .thinking { max-width: 90%; }
+      .tool-call { max-width: 90%; }
+      .queue-indicator { max-width: 90%; }
+      header { padding: 12px 16px; }
+      #input-area { padding: 12px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="avatar">🤖</div>
+    <div style="flex:1;">
+      <h1>Ribo</h1>
+      <div class="status">Persoenlicher Assistent</div>
+    </div>
+    <button id="reset-btn" onclick="resetChat()" title="Neuer Chat">🔄</button>
+  </header>
+
+  <div id="messages">
+    <div class="message bot">
+      <div class="label">Ribo</div>
+      Hallo! Ich bin Ribo, dein persoenlicher Assistent. Frag mich was du willst — Wetter, Kalender, Smart Home, Spiele bauen, oder einfach quatschen.
+      <div class="timestamp"></div>
+    </div>
+  </div>
+
+  <div id="input-area">
+    <textarea id="input" rows="1" placeholder="Nachricht an Ribo... (Enter = senden, Shift+Enter = neue Zeile)" autocomplete="off" autofocus></textarea>
+    <button id="stop-btn" onclick="cancelCurrent()" title="Aktuelle Antwort abbrechen">Stop</button>
+    <button id="send-btn" onclick="sendMessage()">Senden</button>
+  </div>
+
+  <script>
+    const messagesEl = document.getElementById('messages');
+    const inputEl = document.getElementById('input');
+    const sendBtn = document.getElementById('send-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    // Auto-resize für Textarea
+    inputEl.addEventListener('input', () => {
+      inputEl.style.height = 'auto';
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 160) + 'px';
+    });
+    let isLoading = false;
+    let messageQueue = [];
+
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    function formatTime(date) {
+      const now = new Date();
+      const isToday = date.toDateString() === now.toDateString();
+      const time = date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      if (isToday) return time;
+      const dateStr = date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
+      return dateStr + ' ' + time;
+    }
+
+    function addTimestamp(el) {
+      const ts = document.createElement('div');
+      ts.className = 'timestamp';
+      ts.textContent = formatTime(new Date());
+      el.appendChild(ts);
+    }
+
+    function addMessage(text, type) {
+      const div = document.createElement('div');
+      div.className = `message ${type}`;
+      if (type === 'bot') {
+        // Marker: [IMAGE:userId:relPath] → Bild anzeigen, [FILE:userId:relPath] → Download-Link
+        const imageMarker = text.match(/\[IMAGE:([^\]]+):([^\]]+)\]/);
+        const fileMarker = text.match(/\[FILE:([^\]]+):([^\]]+)\]/);
+        const cleanText = text.replace(/\[(FILE|IMAGE):[^\]]+\]/g, '').trim();
+
+        let imageHtml = '';
+        if (imageMarker) {
+          const imgUserId = imageMarker[1];
+          const relPath = imageMarker[2];
+          const imageUrl = `/files/${imgUserId}/${relPath}`;
+          imageHtml = `<img src="${imageUrl}" alt="Generiertes Bild" style="max-width:100%;border-radius:8px;margin-top:8px;cursor:pointer;" onclick="window.open('${imageUrl}','_blank')">`;
+        }
+
+        let fileHtml = '';
+        if (fileMarker) {
+          const fileUserId = fileMarker[1];
+          const relPath = fileMarker[2];
+          const fileUrl = `/files/${fileUserId}/${relPath}`;
+          const fileName = relPath.split('/').pop();
+          fileHtml = `<a href="${fileUrl}" download style="display:inline-block;margin-top:8px;padding:8px 12px;background:var(--input-bg);border-radius:8px;color:var(--accent);text-decoration:none;">📎 ${escapeHtml(fileName)}</a>`;
+        }
+
+        div.innerHTML = `<div class="label">Ribo</div>${escapeHtml(cleanText)}${imageHtml}${fileHtml}`;
+      } else if (type === 'error') {
+        div.textContent = text;
+      } else {
+        div.textContent = text;
+      }
+      addTimestamp(div);
+      messagesEl.appendChild(div);
+      scrollToBottom();
+      return div;
+    }
+
+    // Set initial timestamp for the welcome message
+    (function() {
+      const tsEl = document.querySelector('.message.bot .timestamp');
+      if (tsEl) tsEl.textContent = formatTime(new Date());
+    })();
+
+    function showTyping() {
+      const div = document.createElement('div');
+      div.className = 'typing';
+      div.id = 'typing-indicator';
+      div.innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
+      messagesEl.appendChild(div);
+      scrollToBottom();
+    }
+
+    function hideTyping() {
+      const el = document.getElementById('typing-indicator');
+      if (el) el.remove();
+    }
+
+    function scrollToBottom() {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // --- Queue-Indikator ---
+    function updateQueueIndicator() {
+      const existing = document.getElementById('queue-indicator');
+      if (existing) existing.remove();
+      if (messageQueue.length > 0) {
+        const div = document.createElement('div');
+        div.className = 'queue-indicator';
+        div.id = 'queue-indicator';
+        div.textContent = `⏳ ${messageQueue.length} Nachricht${messageQueue.length > 1 ? 'en' : ''} in der Warteschlange — kommt nach der aktuellen Antwort.`;
+        messagesEl.appendChild(div);
+        scrollToBottom();
+      }
+    }
+
+    function clearQueueIndicator() {
+      const el = document.getElementById('queue-indicator');
+      if (el) el.remove();
+    }
+
+    // --- Streaming-Helfer: thinking + tool-calls + Text live rendern ---
+    let thinkingEl = null;
+    let thinkingText = '';
+    let textEl = null;
+    let textContent = '';
+
+    function ensureThinkingEl() {
+      if (!thinkingEl) {
+        thinkingEl = document.createElement('div');
+        thinkingEl.className = 'thinking';
+        thinkingEl.innerHTML = '<div class="label">Denke nach…</div>';
+        messagesEl.appendChild(thinkingEl);
+        scrollToBottom();
+      }
+      return thinkingEl;
+    }
+
+    function appendThinking(delta) {
+      const el = ensureThinkingEl();
+      thinkingText += delta;
+      el.innerHTML = `<div class="label">Denke nach…</div>${escapeHtml(thinkingText)}`;
+      scrollToBottom();
+    }
+
+    function finalizeThinking() {
+      if (thinkingEl) {
+        thinkingEl.innerHTML = `<div class="label">Gedanken</div>${escapeHtml(thinkingText)}`;
+      }
+    }
+
+    function addToolCallBlock(name, input) {
+      const div = document.createElement('div');
+      div.className = 'tool-call';
+      const details = input === undefined ? '' : `\n${JSON.stringify(input, null, 2)}`;
+      div.innerHTML = `<div class="label">🔧 Tool gestartet</div>${escapeHtml(String(name || 'Unbekannt'))}${details ? `<pre style="margin-top:6px;white-space:pre-wrap;font:inherit;opacity:.8">${escapeHtml(details)}</pre>` : ''}`;
+      messagesEl.appendChild(div);
+      scrollToBottom();
+      return div;
+    }
+
+    function addToolResultBlock(name, result, isError = false) {
+      const div = document.createElement('div');
+      div.className = 'tool-call';
+      const label = isError ? '⚠️ Tool-Fehler' : '✓ Tool-Ergebnis';
+      let details = '';
+      try {
+        details = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+      } catch (_) {
+        details = String(result);
+      }
+      if (details && details.length > 1200) details = details.slice(0, 1200) + '…';
+      div.innerHTML = `<div class="label">${label}</div>${escapeHtml(String(name || 'Tool'))}${details ? `<pre style="margin-top:6px;white-space:pre-wrap;font:inherit;opacity:.8">${escapeHtml(details)}</pre>` : ''}`;
+      if (isError) div.style.borderLeftColor = '#e57373';
+      messagesEl.appendChild(div);
+      scrollToBottom();
+    }
+
+    function ensureTextEl() {
+      if (!textEl) {
+        textEl = document.createElement('div');
+        textEl.className = 'message bot';
+        textEl.innerHTML = '<div class="label">Ribo</div><div class="content"></div>';
+        messagesEl.appendChild(textEl);
+        scrollToBottom();
+      }
+      return textEl;
+    }
+
+    function appendText(delta) {
+      const el = ensureTextEl();
+      textContent += delta;
+      const contentEl = el.querySelector('.content');
+      if (contentEl) contentEl.textContent = textContent;
+      scrollToBottom();
+    }
+
+    function finalizeText() {
+      if (textEl) {
+        // Am Ende: Marker (Bild/Datei) rendern wie bei addMessage
+        const contentEl = textEl.querySelector('.content');
+        if (contentEl) {
+          const imageMarker = textContent.match(/\[IMAGE:([^\]]+):([^\]]+)\]/);
+          const fileMarker = textContent.match(/\[FILE:([^\]]+):([^\]]+)\]/);
+          const cleanText = textContent.replace(/\[(FILE|IMAGE):[^\]]+\]/g, '').trim();
+          contentEl.innerHTML = escapeHtml(cleanText);
+          if (imageMarker) {
+            const imgUserId = imageMarker[1];
+            const relPath = imageMarker[2];
+            const imageUrl = `/files/${imgUserId}/${relPath}`;
+            const img = document.createElement('img');
+            img.src = imageUrl;
+            img.alt = 'Generiertes Bild';
+            img.style.maxWidth = '100%';
+            img.style.borderRadius = '8px';
+            img.style.marginTop = '8px';
+            img.style.cursor = 'pointer';
+            img.onclick = () => window.open(imageUrl, '_blank');
+            contentEl.appendChild(img);
+          }
+          if (fileMarker) {
+            const fileUserId = fileMarker[1];
+            const relPath = fileMarker[2];
+            const fileUrl = `/files/${fileUserId}/${relPath}`;
+            const fileName = relPath.split('/').pop();
+            const a = document.createElement('a');
+            a.href = fileUrl;
+            a.download = '';
+            a.style.display = 'inline-block';
+            a.style.marginTop = '8px';
+            a.style.padding = '8px 12px';
+            a.style.background = 'var(--input-bg)';
+            a.style.borderRadius = '8px';
+            a.style.color = 'var(--accent)';
+            a.style.textDecoration = 'none';
+            a.textContent = '📎 ' + fileName;
+            contentEl.appendChild(a);
+          }
+        }
+        addTimestamp(textEl);
+        // Block abschließen → nächster Text kommt in einen neuen, getrennten Block
+        textEl = null;
+        textContent = '';
+      }
+    }
+
+    function resetStreamState() {
+      thinkingEl = null;
+      thinkingText = '';
+      textEl = null;
+      textContent = '';
+    }
+
+    async function resetChat() {
+      if (isLoading) return;
+      try {
+        await fetch('/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+        // Clear the chat UI
+        messagesEl.innerHTML = '';
+        addMessage('Neuer Chat gestartet. Womit kann ich helfen?', 'bot');
+      } catch (e) {
+        addMessage(`Reset fehlgeschlagen: ${e.message}`, 'error');
+      }
+    }
+
+    // --- Cancel (Stop) ---
+    async function cancelCurrent() {
+      if (!isLoading) return;
+      try {
+        await fetch('/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+      } catch (e) {
+        // Cancel fehlgeschlagen — die aktuelle Antwort läuft weiter
+      }
+    }
+
+    // --- Senden: pusht in Queue wenn gerade beschäftigt ---
+    function sendMessage() {
+      const text = inputEl.value.trim();
+      if (!text) return;
+      inputEl.value = '';
+      inputEl.style.height = 'auto';
+
+      if (isLoading) {
+        messageQueue.push(text);
+        updateQueueIndicator();
+        return;
+      }
+      processMessage(text);
+    }
+
+    // --- Verarbeitung einer einzelnen Nachricht (mit Queue-Weitergabe) ---
+    async function processMessage(text) {
+      isLoading = true;
+      sendBtn.disabled = true;
+      stopBtn.classList.add('visible');
+
+      addMessage(text, 'user');
+      showTyping();
+      resetStreamState();
+      let receivedAnswer = false;
+
+      try {
+        const resp = await fetch('/prompt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text, stream: true }),
+        });
+
+        hideTyping();
+
+        if (!resp.ok) {
+          // Fallback: evtl. kein Stream (z.B. 400/500 als JSON)
+          const err = await resp.json().catch(() => ({ error: 'Unbekannter Fehler' }));
+          addMessage(`Fehler: ${err.error || err.message || resp.statusText}`, 'error');
+          return;
+        }
+
+        // Stream konsumieren (SSE: "data: {json}\n\n")
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          // SSE-Events sind durch doppelte Zeilenumbrüche getrennt
+          const parts = buffer.split('\n\n');
+          buffer = parts.pop(); // unvollständiges Stück behalten
+
+          for (const part of parts) {
+            const line = part.trim();
+            if (!line.startsWith('data:')) continue;
+            const payload = line.slice(5).trim();
+            if (payload === '[DONE]') continue;
+
+            let evt;
+            try { evt = JSON.parse(payload); } catch (_) { continue; }
+
+            if (evt.error) {
+              addMessage(`Fehler: ${evt.error}`, 'error');
+            } else if (evt.thinking) {
+              appendThinking(evt.thinking);
+            } else if (evt.tool_call) {
+              // Tool-Call: alten Text-Block sauber schließen, damit der
+              // folgende Text in einen neuen, getrennten Block kommt
+              finalizeThinking();
+              finalizeText();
+              addToolCallBlock(evt.tool_call.name, evt.tool_call.input);
+            } else if (evt.tool_update) {
+              // Fortschrittsereignisse können später als eigener Live-Block dargestellt werden.
+            } else if (evt.tool_result) {
+              addToolResultBlock(evt.tool_result.name, evt.tool_result.result, evt.tool_result.isError);
+            } else if (evt.delta) {
+              finalizeThinking();
+              receivedAnswer = true;
+              appendText(evt.delta);
+            } else if (evt.done) {
+              // Fallback: falls nichts gestreamt wurde, aber full_text da ist
+              if (!receivedAnswer && evt.full_text) {
+                finalizeThinking();
+                receivedAnswer = true;
+                appendText(evt.full_text);
+              }
+            }
+          }
+        }
+
+        finalizeThinking();
+        finalizeText();
+
+        // Falls gar nichts kam
+        if (!receivedAnswer && !thinkingText) {
+          addMessage('Keine Antwort erhalten.', 'bot');
+        }
+      } catch (e) {
+        hideTyping();
+        addMessage(`Verbindungsfehler: ${e.message}`, 'error');
+      } finally {
+        isLoading = false;
+        sendBtn.disabled = false;
+        stopBtn.classList.remove('visible');
+        inputEl.focus();
+
+        // Nächste aus der Queue automatisch weitergeben
+        if (messageQueue.length > 0) {
+          clearQueueIndicator();
+          const next = messageQueue.shift();
+          updateQueueIndicator();
+          processMessage(next);
+        }
+      }
+    }
+  </script>
+</body>
+</html>
