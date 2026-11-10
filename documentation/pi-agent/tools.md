@@ -92,20 +92,11 @@ Sucht im Internet via Tavily API. Permission: `search`.
 - `query` — Suchbegriff → Antwort + Quellen
 Braucht `TAVILY_API_KEY`, sonst deaktiviert.
 
-## godot.js — Godot-Spiele
-Erstellt/bearbeitet Godot-4-Projekte (Dateien schreiben). Permission: `godot`.
-- `create_project` — project.godot + Standardstruktur
-- `write_file` — Szene (.tscn), Script (.gd), Ressource schreiben
-- `read_file`, `list_files`, `delete_file`
-
-Schreibt nur Dateien — zum Testen öffnet der Nutzer das Projekt in Godot am Mac. Path-Traversal-Schutz (bleibt im Projektordner).
-
 ## imagegen.js — Bildgenerierung
 Generiert Bilder via imagegen-service (FLUX). Permission: `imagegen`.
 - `prompt` — Englische Bildbeschreibung
 - `model` — "schnell" (4 Steps) oder "dev" (20 Steps)
 - `source_image` + `strength` — img2img (bestehendes Bild bearbeiten)
-- `save_to_godot` — Bild ins Godot-Projekt kopieren
 
 Kopiert das generierte Bild in den User-Ordner, gibt einen `[FILE:...]`-Marker zurück für den Telegram/Web-Versand.
 
@@ -164,7 +155,7 @@ Erstellt beliebige Code-Projekte (JS, Python, Java, ...). Permission: `projects`
 - `read_file`, `list`, `delete_file`
 - `zip` — Projekt als ZIP packen (via `archiver`) und schicken (gibt `[FILE:...]`-Marker)
 
-Im Gegensatz zu godot.js generisch (jede Sprache, freie Struktur). Speichert in `projects/<name>/`.
+Generisch für Code-Projekte (jede Sprache, freie Struktur). Speichert in `projects/<name>/`.
 
 ## admin.js — User-Verwaltung
 Nutzer verwalten. Permission: `admin` (nur Enrico).

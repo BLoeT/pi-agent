@@ -73,13 +73,10 @@ Alle Listennamen die ein User sieht: persönliche + geteilte Gruppen-Listen (ohn
 
 ## Pfad-Helpers für andere Tools
 
-### `getGodotProjectDir()`
-Godot-Projektverzeichnis des aktuellen Users.
-
 ### `getImagegenOutputDir()`
 Verzeichnis für generierte Bilder des aktuellen Users.
 
 ### `getFlashcardsDir()`
 Verzeichnis für Lernkarten-Decks des aktuellen Users.
 
-Alle drei leiten aus `getCurrentUserId()` + `getUserWorkspacePath()` ab — so ist alles automatisch pro User getrennt.
+Beide leiten aus `getCurrentUserId()` + `getUserWorkspacePath()` ab — so ist alles automatisch pro User getrennt.

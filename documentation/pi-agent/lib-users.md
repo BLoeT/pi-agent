@@ -25,7 +25,7 @@ Sucht einen User per Name (case-insensitive). Gibt `{ id, name, chat_id, permiss
 Sucht einen User per Telegram-Chat-ID. Wird vom Telegram-Bot genutzt um eingehende Nachrichten dem richtigen User zuzuordnen.
 
 ### `userHasPermission(userId, permission)`
-Prüft ob ein User eine bestimmte Berechtigung hat (z.B. "godot", "admin"). Basis der Zugriffskontrolle.
+Prüft ob ein User eine bestimmte Berechtigung hat (z.B. "imagegen", "admin"). Basis der Zugriffskontrolle.
 
 ### `getUserWorkspacePath(userId)`
 Gibt den Pfad zum persönlichen Workspace zurück: `/workspace/users/<userId>`.
@@ -37,7 +37,7 @@ Gibt die Gruppen eines Users zurück (z.B. "familie", "eltern") inklusive Gruppe
 Für jede Gruppe des Users: die geteilten Ressourcen-Pfade (Gruppen-Kalender, geteilte Listen-Ordner, Liste der geteilten Listennamen). Wird von Kalender- und Listen-Tools genutzt um geteilte Daten einzubeziehen.
 
 ### `ensureUserWorkspace(userId)`
-Legt die Verzeichnisstruktur für einen User an (lists, generated-images, flashcards, expenses, memory, projects — und godot-project falls Berechtigung vorhanden). Idempotent (schadet nicht wenn schon da).
+Legt die Verzeichnisstruktur für einen User an (lists, generated-images, flashcards, expenses, memory, projects). Idempotent (schadet nicht wenn schon da).
 
 ### `setCurrentUser(userId)`
 Setzt `_currentUserId` und stellt sicher dass der Workspace existiert. Wird zu Beginn jeder Anfrage im `/prompt`-Endpoint aufgerufen.

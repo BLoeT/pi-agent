@@ -1,3 +1,4 @@
+import { fetchResponse } from "../lib/http.js";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { mapWmoCodeToCondition, resolveTargetDayIndex, formatDayLabel, geocodeLocation } from "../weather-helpers.js";
@@ -44,7 +45,7 @@ export default defineTool({
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000);
       let response;
-      try { response = await fetch(url, { signal: controller.signal }); } finally { clearTimeout(timeout); }
+      try { response = await fetchResponse(url, { signal: controller.signal }); } finally { clearTimeout(timeout); }
       if (!response.ok) return { content: [{ type: "text", text: JSON.stringify({ result: "Wetterdaten momentan nicht verfuegbar." }) }], details: {} };
 
       const data = await response.json();

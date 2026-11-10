@@ -1,3 +1,6 @@
+> Aktuelle Modulstruktur und Entwicklungsregeln: [ARCHITECTURE.md](../ARCHITECTURE.md).
+> Die folgende Übersicht beschreibt die Dienste und Datenbereiche.
+
 # Architektur
 
 ## Überblick
@@ -52,7 +55,6 @@ workspace/
 │   │   ├── expenses/
 │   │   ├── memory/
 │   │   ├── generated-images/
-│   │   ├── godot-project/
 │   │   └── projects/
 │   ├── jaqueline/
 │   └── uwe/

@@ -1,0 +1,11 @@
+{
+  "name": "ribo-telegram",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {},
+  "dependencies": {
+    "node-telegram-bot-api": "2.1.0",
+    "undici": "8.12.3"
+  }
+}

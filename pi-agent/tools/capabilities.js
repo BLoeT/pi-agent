@@ -1,7 +1,7 @@
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { getCurrentUserId, getUserByName, userHasPermission } from "../lib/users.js";
-import { PLUGINS_DIR, readPluginMeta } from "../lib/plugins.js";
+import { PLUGINS_DIR, userCanUsePlugin, getPluginInfo } from "../lib/plugins.js";
 import fs from "fs";
 import path from "path";
 
@@ -18,18 +18,20 @@ const FEATURES = [
   { perm: "weather",     text: "🌤️ Wetter abfragen (aktuell + Vorhersage)" },
   { perm: "news",        text: "📰 Nachrichten vorlesen" },
   { perm: "search",      text: "🔍 Im Web suchen" },
+  { perm: "videogen", text: "🎬 Videos generieren" },
+  { perm: "proactive_rules", text: "⏰ Geplante Ribo-Aufträge verwalten" },
   { perm: "imagegen",    text: "🎨 Bilder generieren" },
   { perm: "flashcards",  text: "🎴 Vokabeln/Fakten lernen (Lernkarten)" },
   { perm: "cooking",     text: "🍳 Rezepte finden und Zutaten auf die Liste setzen" },
   { perm: "expenses",    text: "💶 Ausgaben erfassen und auswerten" },
-  { perm: "godot",       text: "🎮 Godot-Spiele entwickeln" },
   { perm: "projects",    text: "💻 Code/Apps schreiben und als ZIP schicken" },
   { perm: "files",       text: "📎 Dateien aus dem Workspace schicken/auflisten" },
-  { perm: "admin",       text: "👤 Nutzer verwalten + Plugins entwickeln (Admin)" },
+  { perm: "admin",       text: "👤 Nutzer verwalten und geprüfte Plugins anzeigen (Admin)" },
 ];
 
 // Immer verfügbar (nicht permission-geschützt)
 const ALWAYS = [
+  "🖼️ Eigene Upload-Bilder benennen, anzeigen und löschen",
   "💬 Mich an deinen Kommunikationsstil anpassen (Persönlichkeit)",
   "🧠 Mir wichtige Dinge über dich merken (Langzeitgedächtnis)",
   "📷 Fotos verstehen (schick mir ein Bild)",
@@ -41,15 +43,11 @@ function listUserPlugins(userId) {
     if (!fs.existsSync(PLUGINS_DIR)) return out;
     for (const f of fs.readdirSync(PLUGINS_DIR)) {
       if (!f.endsWith(".js")) continue;
-      const meta = readPluginMeta(f);
-      const allowed = meta.allowed_users;
-      const canUse = !allowed || allowed.length === 0 || allowed.includes(userId);
+      const canUse = userHasPermission(userId,"admin") && userCanUsePlugin(f,userId);
       if (!canUse) continue;
       try {
-        const c = fs.readFileSync(path.join(PLUGINS_DIR, f), "utf-8");
-        const d = c.match(/description:\s*["']([^"']+)["']/);
-        const n = c.match(/name:\s*["']([^"']+)["']/);
-        out.push(`🔌 ${n?.[1] || f}${d ? " — " + d[1].slice(0, 60) : ""}`);
+        const info=getPluginInfo(f);
+        out.push(`🔌 ${info.name}${info.description ? " — " + info.description.slice(0,60) : ""}`);
       } catch (_) { out.push(`🔌 ${f}`); }
     }
   } catch (_) { /* ignore */ }

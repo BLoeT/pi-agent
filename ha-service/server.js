@@ -1,6 +1,16 @@
+import { timingSafeEqual } from "node:crypto";
 import express from "express";
 
 const app = express();
+const internalToken = process.env.RIBO_INTERNAL_TOKEN;
+if (!internalToken || internalToken.length < 32) throw new Error("RIBO_INTERNAL_TOKEN fehlt");
+app.use((req, res, next) => {
+  if (req.path === "/health" && req.method === "GET") return next();
+  const sent = Buffer.from(req.get("authorization") || "");
+  const expected = Buffer.from(`Bearer ${internalToken}`);
+  if (sent.length !== expected.length || !timingSafeEqual(sent, expected)) return res.status(401).json({ error: "Dienstanmeldung erforderlich" });
+  next();
+});
 app.use(express.json());
 
 const HA_URL = process.env.HA_URL || "http://homeassistant:8123";
@@ -13,6 +23,7 @@ if (!HA_TOKEN) {
 async function haFetch(path, options = {}) {
   const resp = await fetch(`${HA_URL}/api${path}`, {
     ...options,
+    signal: options.signal || AbortSignal.timeout(30000),
     headers: {
       "Authorization": `Bearer ${HA_TOKEN}`,
       "Content-Type": "application/json",

@@ -1,6 +1,11 @@
+import { resolveGenerationSource } from "../lib/uploads.js";
+import {generateRequest,claimGeneratedFile} from "../lib/generation.js";
+import {getUserWorkspacePath} from "../lib/users.js";
+import { serviceHeaders } from "../lib/security.js";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import fs from "fs";
+import { resolveWithin, safeName } from "../lib/security.js";
 import path from "path";
 import { checkPermission, getCurrentUserId } from "../lib/users.js";
 import { getImagegenOutputDir } from "../lib/helpers.js";
@@ -9,11 +14,9 @@ const IMAGEGEN_SERVICE_URL = process.env.IMAGEGEN_SERVICE_URL || "http://host.do
 const HOST_WORKSPACE_PATH = process.env.HOST_WORKSPACE_PATH || "/Users/enricostarke/Desktop/pi-agent/workspace";
 
 function toHostPath(p, userId) {
-  if (!p) return p;
-  if (p.startsWith("/workspace/")) {
-    return p.replace("/workspace", HOST_WORKSPACE_PATH);
-  }
-  return path.join(HOST_WORKSPACE_PATH, "users", userId, p);
+  const containerRoot = path.join("/workspace/users", userId);
+  const relative = path.relative(containerRoot, resolveWithin(containerRoot, p));
+  return resolveWithin(path.join(HOST_WORKSPACE_PATH, "users", userId), relative);
 }
 
 export default defineTool({
@@ -25,6 +28,7 @@ export default defineTool({
     "Frames werden automatisch auf 4n+1 gerundet. Dauer: mehrere Minuten.",
   parameters: Type.Object({
     prompt: Type.String({ description: "Englische Videobeschreibung (detailliert). Übersetze deutsche Anfragen." }),
+    use_uploaded_image: Type.Optional(Type.Boolean({description:"Aktuell angehängtes Bild als Vorlage verwenden (Standard true). Nur bei ausdrücklich neuer Erzeugung ohne Bildvorlage false; dann kein source_image setzen."})),
     source_image: Type.Optional(Type.String({
       description: "Pfad zum Quellbild → Image-to-Video (Video animiert dieses Bild). " +
                    "Ohne Angabe: Text-to-Video. Relativ zum User-Workspace oder absolut."
@@ -40,7 +44,7 @@ export default defineTool({
     negative_prompt: Type.Optional(Type.String({ description: "Was NICHT vorkommen soll (wird bei guidance > 1 genutzt)" })),
     filename: Type.Optional(Type.String({ description: "Dateiname (z.B. spaceship.mp4)" })),
   }),
-  execute: async (_toolCallId, { prompt, source_image, frames, fps, width, height, steps, guidance, guidance_2, seed, negative_prompt, filename }) => {
+  execute: async (_toolCallId, { prompt, source_image, use_uploaded_image, frames, fps, width, height, steps, guidance, guidance_2, seed, negative_prompt, filename }, signal) => {
     const denied = checkPermission("videogen");
     if (denied) return denied;
     try {
@@ -49,6 +53,7 @@ export default defineTool({
       }
 
       const userId = getCurrentUserId();
+      const sourceImage = resolveGenerationSource(source_image,use_uploaded_image);
 
       const body = { prompt: prompt.trim() };
       if (frames) body.frames = frames;
@@ -60,57 +65,15 @@ export default defineTool({
       if (guidance_2) body.guidance_2 = guidance_2;
       if (seed !== undefined) body.seed = seed;
       if (negative_prompt) body.negative_prompt = negative_prompt;
-      if (source_image) body.init_image = toHostPath(source_image, userId);
+      if (sourceImage) body.init_image = toHostPath(sourceImage, userId);
 
-      // Video-Generation (14B-Modell) kann sehr lange dauern -> 1h Timeout
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 3600000);
-      let resp;
-      try {
-        resp = await fetch(`${IMAGEGEN_SERVICE_URL}/generate-video`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-          signal: controller.signal,
-        });
-      } finally { clearTimeout(timeout); }
-
-      if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}));
-        return { content: [{ type: "text", text: JSON.stringify({ error: errData.error || `Fehler: ${resp.status}` }) }], details: {} };
-      }
-
-      const data = await resp.json();
-      if (data.error) return { content: [{ type: "text", text: JSON.stringify({ error: data.error }) }], details: {} };
-
-      const srcName = path.basename(data.path);
-      const globalVideoPath = path.join("/workspace", "generated-videos", srcName);
-
-      let userRelPath = null;
-      try {
-        // generated-videos neben generated-images im User-Ordner
-        const userBaseDir = path.dirname(getImagegenOutputDir());
-        const userVideosDir = path.join(userBaseDir, "generated-videos");
-        fs.mkdirSync(userVideosDir, { recursive: true });
-        let targetName = filename?.trim() || srcName;
-        if (!targetName.endsWith(".mp4")) targetName += ".mp4";
-        const userVideoPath = path.join(userVideosDir, targetName);
-
-        if (fs.existsSync(globalVideoPath)) {
-          // BEWEGEN statt kopieren — nur eine Kopie im User-Ordner
-          try {
-            fs.renameSync(globalVideoPath, userVideoPath);
-          } catch {
-            fs.copyFileSync(globalVideoPath, userVideoPath);
-            try { fs.unlinkSync(globalVideoPath); } catch {}
-          }
-          userRelPath = path.join("generated-videos", targetName);
-        }
-      } catch {}
+      const data=await generateRequest(`${IMAGEGEN_SERVICE_URL}/generate-video`,body,{signal,timeout:3600000});
+      const userDir=resolveWithin(getUserWorkspacePath(userId),"generated-videos");
+      const userRelPath=claimGeneratedFile(data,{kind:"video",filename,userDir});
 
       const result = {
         status: "ok",
-        mode: source_image ? "img2vid" : "text2vid",
+        mode: sourceImage ? "img2vid" : "text2vid",
         path: data.path,
         user_path: userRelPath,
         prompt: prompt.trim(),

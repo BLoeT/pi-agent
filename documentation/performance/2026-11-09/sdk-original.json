@@ -1,0 +1,443 @@
+[
+  {
+    "thinkingLevel": "low",
+    "warmup": true,
+    "quality_ok": true,
+    "timing": {
+      "event": "prompt_duration",
+      "request_id": "low-0",
+      "ms": 27539,
+      "total_ms": 27539,
+      "first_delta_ms": 25875,
+      "queue_ms": 0,
+      "session_ms": 374,
+      "first_thinking_ms": 25875,
+      "first_text_ms": 27440,
+      "tool_calls": 0,
+      "tool_ms": 0,
+      "model_rounds": 1,
+      "outcome": "ok",
+      "image": false
+    },
+    "wire": [
+      {
+        "num_ctx": 65536,
+        "think": "low",
+        "tool_count": 24,
+        "tool_chars": 19317,
+        "message_chars": 22325,
+        "wall_ms": 27161,
+        "prompt_eval_count": 12071,
+        "prompt_eval_duration": 25309931375,
+        "eval_count": 49,
+        "eval_duration": 1827616458,
+        "load_duration": 1920292
+      }
+    ]
+  },
+  {
+    "thinkingLevel": "low",
+    "warmup": false,
+    "quality_ok": true,
+    "timing": {
+      "event": "prompt_duration",
+      "request_id": "low-1",
+      "ms": 1061,
+      "total_ms": 1061,
+      "first_delta_ms": 330,
+      "queue_ms": 0,
+      "session_ms": 0,
+      "first_thinking_ms": 331,
+      "first_text_ms": 1060,
+      "tool_calls": 0,
+      "tool_ms": 0,
+      "model_rounds": 1,
+      "outcome": "ok",
+      "image": false
+    },
+    "wire": [
+      {
+        "num_ctx": 65536,
+        "think": "low",
+        "tool_count": 24,
+        "tool_chars": 19317,
+        "message_chars": 22467,
+        "wall_ms": 1054,
+        "prompt_eval_count": 12112,
+        "prompt_eval_duration": 206121667,
+        "eval_count": 27,
+        "eval_duration": 823996916,
+        "load_duration": 4962000
+      }
+    ]
+  },
+  {
+    "thinkingLevel": "low",
+    "warmup": false,
+    "quality_ok": true,
+    "timing": {
+      "event": "prompt_duration",
+      "request_id": "low-2",
+      "ms": 1253,
+      "total_ms": 1253,
+      "first_delta_ms": 345,
+      "queue_ms": 0,
+      "session_ms": 0,
+      "first_thinking_ms": 345,
+      "first_text_ms": 1252,
+      "tool_calls": 0,
+      "tool_ms": 0,
+      "model_rounds": 1,
+      "outcome": "ok",
+      "image": false
+    },
+    "wire": [
+      {
+        "num_ctx": 65536,
+        "think": "low",
+        "tool_count": 24,
+        "tool_chars": 19317,
+        "message_chars": 22609,
+        "wall_ms": 1248,
+        "prompt_eval_count": 12153,
+        "prompt_eval_duration": 209391125,
+        "eval_count": 33,
+        "eval_duration": 1018958667,
+        "load_duration": 973709
+      }
+    ]
+  },
+  {
+    "thinkingLevel": "low",
+    "warmup": false,
+    "quality_ok": true,
+    "timing": {
+      "event": "prompt_duration",
+      "request_id": "low-3",
+      "ms": 971,
+      "total_ms": 971,
+      "first_delta_ms": 347,
+      "queue_ms": 0,
+      "session_ms": 0,
+      "first_thinking_ms": 347,
+      "first_text_ms": 865,
+      "tool_calls": 0,
+      "tool_ms": 0,
+      "model_rounds": 1,
+      "outcome": "ok",
+      "image": false
+    },
+    "wire": [
+      {
+        "num_ctx": 65536,
+        "think": "low",
+        "tool_count": 24,
+        "tool_chars": 19317,
+        "message_chars": 22751,
+        "wall_ms": 966,
+        "prompt_eval_count": 12194,
+        "prompt_eval_duration": 203281542,
+        "eval_count": 24,
+        "eval_duration": 734602333,
+        "load_duration": 11902583
+      }
+    ]
+  },
+  {
+    "thinkingLevel": "low",
+    "warmup": false,
+    "quality_ok": true,
+    "timing": {
+      "event": "prompt_duration",
+      "request_id": "low-4",
+      "ms": 1210,
+      "total_ms": 1210,
+      "first_delta_ms": 353,
+      "queue_ms": 0,
+      "session_ms": 0,
+      "first_thinking_ms": 353,
+      "first_text_ms": 1209,
+      "tool_calls": 0,
+      "tool_ms": 0,
+      "model_rounds": 1,
+      "outcome": "ok",
+      "image": false
+    },
+    "wire": [
+      {
+        "num_ctx": 65536,
+        "think": "low",
+        "tool_count": 24,
+        "tool_chars": 19317,
+        "message_chars": 22893,
+        "wall_ms": 1205,
+        "prompt_eval_count": 12235,
+        "prompt_eval_duration": 205919333,
+        "eval_count": 31,
+        "eval_duration": 970090167,
+        "load_duration": 8033583
+      }
+    ]
+  },
+  {
+    "thinkingLevel": "low",
+    "warmup": false,
+    "quality_ok": true,
+    "timing": {
+      "event": "prompt_duration",
+      "request_id": "low-5",
+      "ms": 1301,
+      "total_ms": 1301,
+      "first_delta_ms": 335,
+      "queue_ms": 0,
+      "session_ms": 0,
+      "first_thinking_ms": 335,
+      "first_text_ms": 1300,
+      "tool_calls": 0,
+      "tool_ms": 0,
+      "model_rounds": 1,
+      "outcome": "ok",
+      "image": false
+    },
+    "wire": [
+      {
+        "num_ctx": 65536,
+        "think": "low",
+        "tool_count": 24,
+        "tool_chars": 19317,
+        "message_chars": 23035,
+        "wall_ms": 1295,
+        "prompt_eval_count": 12276,
+        "prompt_eval_duration": 204676375,
+        "eval_count": 31,
+        "eval_duration": 1060547917,
+        "load_duration": 5269333
+      }
+    ]
+  },
+  {
+    "thinkingLevel": "off",
+    "warmup": true,
+    "quality_ok": true,
+    "timing": {
+      "event": "prompt_duration",
+      "request_id": "off-0",
+      "ms": 26918,
+      "total_ms": 26918,
+      "first_delta_ms": 26918,
+      "queue_ms": 0,
+      "session_ms": 45,
+      "first_thinking_ms": null,
+      "first_text_ms": 26918,
+      "tool_calls": 0,
+      "tool_ms": 0,
+      "model_rounds": 1,
+      "outcome": "ok",
+      "image": false
+    },
+    "wire": [
+      {
+        "num_ctx": 65536,
+        "num_predict": 1,
+        "think": false,
+        "tool_count": 24,
+        "tool_chars": 19317,
+        "message_chars": 22219,
+        "wall_ms": 12
+      },
+      {
+        "num_ctx": 65536,
+        "think": false,
+        "tool_count": 24,
+        "tool_chars": 19317,
+        "message_chars": 22325,
+        "wall_ms": 26868,
+        "prompt_eval_count": 12047,
+        "prompt_eval_duration": 26694272458,
+        "eval_count": 2,
+        "eval_duration": 158566083,
+        "load_duration": 1435708
+      }
+    ]
+  },
+  {
+    "thinkingLevel": "off",
+    "warmup": false,
+    "quality_ok": true,
+    "timing": {
+      "event": "prompt_duration",
+      "request_id": "off-1",
+      "ms": 309,
+      "total_ms": 309,
+      "first_delta_ms": 309,
+      "queue_ms": 0,
+      "session_ms": 0,
+      "first_thinking_ms": null,
+      "first_text_ms": 309,
+      "tool_calls": 0,
+      "tool_ms": 0,
+      "model_rounds": 1,
+      "outcome": "ok",
+      "image": false
+    },
+    "wire": [
+      {
+        "num_ctx": 65536,
+        "think": false,
+        "tool_count": 24,
+        "tool_chars": 19317,
+        "message_chars": 22467,
+        "wall_ms": 306,
+        "prompt_eval_count": 12088,
+        "prompt_eval_duration": 194963833,
+        "eval_count": 2,
+        "eval_duration": 96514041,
+        "load_duration": 865667
+      }
+    ]
+  },
+  {
+    "thinkingLevel": "off",
+    "warmup": false,
+    "quality_ok": true,
+    "timing": {
+      "event": "prompt_duration",
+      "request_id": "off-2",
+      "ms": 316,
+      "total_ms": 316,
+      "first_delta_ms": 315,
+      "queue_ms": 0,
+      "session_ms": 0,
+      "first_thinking_ms": null,
+      "first_text_ms": 316,
+      "tool_calls": 0,
+      "tool_ms": 0,
+      "model_rounds": 1,
+      "outcome": "ok",
+      "image": false
+    },
+    "wire": [
+      {
+        "num_ctx": 65536,
+        "think": false,
+        "tool_count": 24,
+        "tool_chars": 19317,
+        "message_chars": 22609,
+        "wall_ms": 310,
+        "prompt_eval_count": 12129,
+        "prompt_eval_duration": 194730500,
+        "eval_count": 2,
+        "eval_duration": 96267000,
+        "load_duration": 2144041
+      }
+    ]
+  },
+  {
+    "thinkingLevel": "off",
+    "warmup": false,
+    "quality_ok": true,
+    "timing": {
+      "event": "prompt_duration",
+      "request_id": "off-3",
+      "ms": 319,
+      "total_ms": 319,
+      "first_delta_ms": 318,
+      "queue_ms": 0,
+      "session_ms": 0,
+      "first_thinking_ms": null,
+      "first_text_ms": 318,
+      "tool_calls": 0,
+      "tool_ms": 0,
+      "model_rounds": 1,
+      "outcome": "ok",
+      "image": false
+    },
+    "wire": [
+      {
+        "num_ctx": 65536,
+        "think": false,
+        "tool_count": 24,
+        "tool_chars": 19317,
+        "message_chars": 22751,
+        "wall_ms": 314,
+        "prompt_eval_count": 12170,
+        "prompt_eval_duration": 196246666,
+        "eval_count": 2,
+        "eval_duration": 96818625,
+        "load_duration": 1564625
+      }
+    ]
+  },
+  {
+    "thinkingLevel": "off",
+    "warmup": false,
+    "quality_ok": true,
+    "timing": {
+      "event": "prompt_duration",
+      "request_id": "off-4",
+      "ms": 314,
+      "total_ms": 314,
+      "first_delta_ms": 314,
+      "queue_ms": 0,
+      "session_ms": 0,
+      "first_thinking_ms": null,
+      "first_text_ms": 314,
+      "tool_calls": 0,
+      "tool_ms": 0,
+      "model_rounds": 1,
+      "outcome": "ok",
+      "image": false
+    },
+    "wire": [
+      {
+        "num_ctx": 65536,
+        "think": false,
+        "tool_count": 24,
+        "tool_chars": 19317,
+        "message_chars": 22893,
+        "wall_ms": 309,
+        "prompt_eval_count": 12211,
+        "prompt_eval_duration": 193099916,
+        "eval_count": 2,
+        "eval_duration": 96758333,
+        "load_duration": 2222458
+      }
+    ]
+  },
+  {
+    "thinkingLevel": "off",
+    "warmup": false,
+    "quality_ok": true,
+    "timing": {
+      "event": "prompt_duration",
+      "request_id": "off-5",
+      "ms": 319,
+      "total_ms": 319,
+      "first_delta_ms": 319,
+      "queue_ms": 0,
+      "session_ms": 0,
+      "first_thinking_ms": null,
+      "first_text_ms": 319,
+      "tool_calls": 0,
+      "tool_ms": 0,
+      "model_rounds": 1,
+      "outcome": "ok",
+      "image": false
+    },
+    "wire": [
+      {
+        "num_ctx": 65536,
+        "think": false,
+        "tool_count": 24,
+        "tool_chars": 19317,
+        "message_chars": 23035,
+        "wall_ms": 314,
+        "prompt_eval_count": 12252,
+        "prompt_eval_duration": 196287833,
+        "eval_count": 2,
+        "eval_duration": 96519167,
+        "load_duration": 2361708
+      }
+    ]
+  }
+]

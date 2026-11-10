@@ -219,7 +219,7 @@ export default async function (pi: ExtensionAPI): Promise<void> {
 // Model shape conversion
 // ============================================================================
 
-function toProviderModel(
+export function toProviderModel(
 	m: DiscoveredModel,
 	settings: OllamaExtensionSettings,
 ): ProviderModel {
@@ -229,7 +229,7 @@ function toProviderModel(
 	//   1. settings.contextLength — user override (slash command or env var)
 	//   2. min(discovered window, settings.numCtx) — capped default
 	const effectiveContextWindow =
-		settings.contextLength ?? Math.min(m.contextWindow, settings.numCtx);
+		Math.min(m.contextWindow, settings.contextLength ?? settings.numCtx);
 	// The model's own thinking values drive pi's level picker and the `think`
 	// value on the wire (gh#13). Absent = legacy on/off for every level.
 	const thinkingLevelMap = toThinkingLevelMap(m.thinking);
@@ -243,7 +243,8 @@ function toProviderModel(
 		input: m.vision ? ["text", "image"] : ["text"],
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 		contextWindow: effectiveContextWindow,
-		maxTokens: m.maxTokens,
+		// Leave prompt space when switching to a model with a smaller context.
+		maxTokens: Math.min(m.maxTokens, Math.max(128, Math.floor(effectiveContextWindow / 4))),
 		compat: {
 			supportsDeveloperRole: false,
 			supportsReasoningEffort: false,

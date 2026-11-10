@@ -1,18 +1,16 @@
+import { atomicWrite, withFileLock } from "../lib/storage.js";
+import icalParser from "node-ical";
+const parseIcs=icalParser.sync.parseICS;
+import { eventsForDate } from "../lib/calendar.js";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import fs from "fs";
 import path from "path";
-import { resolveTargetDayIndex } from "../weather-helpers.js";
 import { parseGermanDate, parseGermanTime, getCalendarFilePath, getAllCalendarFiles, generateVEvent, appendEventToIcs } from "../lib/helpers.js";
 import { checkPermission } from "../lib/users.js";
 
 function resolveCalendarTargetDate(day) {
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  if (!day || day.toLowerCase() === "heute") return today;
-  const dayIndex = resolveTargetDayIndex(day);
-  if (dayIndex === -1) return null;
-  const target = new Date(today); target.setDate(target.getDate() + dayIndex);
-  return target;
+  return parseGermanDate(day || "heute");
 }
 
 function formatCalendarDayLabel(day) {
@@ -42,32 +40,22 @@ function formatEventForTTS(event) {
   return `${time}: ${event.summary || "Termin"}`;
 }
 
-function getEventsForDate(parsedData, targetDate) {
-  const events = [];
-  for (const key of Object.keys(parsedData)) {
-    const event = parsedData[key];
-    if (event.type !== "VEVENT") continue;
-    if (eventOccursOnDate(event, targetDate)) {
-      events.push({ summary: event.summary, start: new Date(event.start), end: new Date(event.end || event.start), datetype: event.datetype });
-    }
-  }
-  events.sort((a, b) => { if (isAllDayEvent(a) && !isAllDayEvent(b)) return -1; if (!isAllDayEvent(a) && isAllDayEvent(b)) return 1; return a.start - b.start; });
-  return events;
-}
-
 export default defineTool({
   name: "calendar",
   label: "Calendar",
   description: "Verwaltet Termine. Actions: today, day, add, edit, delete.",
   parameters: Type.Object({
     action: Type.String({ description: "today, day, add, edit, delete" }),
-    day: Type.Optional(Type.String()),
+    day: Type.Optional(Type.String({description:"Abfragedatum für day: TT.MM.JJJJ, YYYY-MM-DD, heute, morgen oder Wochentag"})),
     title: Type.Optional(Type.String()),
-    date: Type.Optional(Type.String()),
+    event_id: Type.Optional(Type.String({description:"UID des Termins aus today/day; bei mehreren Treffern erforderlich"})),
+    new_title: Type.Optional(Type.String({description:"Neuer Titel bei edit"})),
+    all_day: Type.Optional(Type.Boolean({description:"Bei edit auf ganztägig umstellen"})),
+    date: Type.Optional(Type.String({description:"Zieldatum für add/edit: TT.MM.JJJJ oder YYYY-MM-DD"})),
     time: Type.Optional(Type.String()),
     reminders: Type.Optional(Type.String({ description: "Kommagetrennte Minuten (z.B. '1440,60' = 1 Tag + 1h vorher)" })),
   }),
-  execute: async (_toolCallId, { action, day, title, date, time, reminders }) => {
+  execute: async (_toolCallId, { action, day, title, event_id, new_title, all_day, date, time, reminders }) => {
     const denied = checkPermission("calendar");
     if (denied) return denied;
     try {
@@ -76,9 +64,9 @@ export default defineTool({
       if (action === "today") {
         targetDate = new Date(); targetDate.setHours(0, 0, 0, 0); dayLabel = "heute";
       } else if (action === "day") {
-        targetDate = resolveCalendarTargetDate(day);
+        targetDate = resolveCalendarTargetDate(day ?? date);
         if (!targetDate) return { content: [{ type: "text", text: JSON.stringify({ error: "Unbekannter Tag" }) }], details: {} };
-        dayLabel = formatCalendarDayLabel(day);
+        dayLabel = formatCalendarDayLabel(day ?? date);
       } else if (action === "add") {
         if (!title?.trim()) return { content: [{ type: "text", text: JSON.stringify({ error: "Titel erforderlich" }) }], details: {} };
         let eventTitle = title.trim().slice(0, 200);
@@ -106,28 +94,55 @@ export default defineTool({
           confirmation += ` Erinnerungen: ${texts.join(", ")} vorher.`;
         }
         return { content: [{ type: "text", text: JSON.stringify({ result: confirmation }) }], details: {} };
-      } else if (action === "delete") {
-        if (!title?.trim()) return { content: [{ type: "text", text: JSON.stringify({ error: "Suchbegriff erforderlich" }) }], details: {} };
-        const calendarPath = getCalendarFilePath();
-        if (!fs.existsSync(calendarPath)) return { content: [{ type: "text", text: JSON.stringify({ result: "Kalender nicht verfügbar." }) }], details: {} };
-        const rawContent = fs.readFileSync(calendarPath, "utf-8");
-        const lines = rawContent.split(/\r?\n/);
-        const searchTerm = title.trim().toLowerCase();
-        // Find and remove matching VEVENT block
-        let blockStart = -1, blockEnd = -1, foundSummary = "";
-        for (let i = 0; i < lines.length; i++) {
-          if (lines[i].trim() === "BEGIN:VEVENT") blockStart = i;
-          if (lines[i].trim().startsWith("SUMMARY:") && lines[i].slice(8).trim().toLowerCase().includes(searchTerm)) foundSummary = lines[i].slice(8).trim();
-          if (lines[i].trim() === "END:VEVENT" && foundSummary && blockStart !== -1) { blockEnd = i; break; }
-          if (lines[i].trim() === "END:VEVENT" && blockStart !== -1) { blockStart = -1; foundSummary = ""; }
-        }
-        if (blockStart === -1 || blockEnd === -1) return { content: [{ type: "text", text: JSON.stringify({ error: "Kein passender Termin gefunden" }) }], details: {} };
-        const newLines = lines.filter((_, i) => i < blockStart || i > blockEnd);
-        fs.writeFileSync(calendarPath, newLines.join("\n"), "utf-8");
-        return { content: [{ type: "text", text: JSON.stringify({ result: `Termin '${foundSummary}' gelöscht.` }) }], details: {} };
-      } else if (action === "edit") {
-        // Simplified edit: delete + re-add approach hint
-        return { content: [{ type: "text", text: JSON.stringify({ error: "Für Bearbeitung bitte den alten Termin löschen und neu anlegen (delete + add)" }) }], details: {} };
+      } else if (["delete","edit"].includes(action)) {
+        if(!event_id && !title?.trim()) throw new Error("Titel oder event_id erforderlich");
+        const calendarPath=getCalendarFilePath();
+        return withFileLock(calendarPath,()=>{
+          if(!fs.existsSync(calendarPath)) throw new Error("Kalender nicht verfügbar");
+          const content=fs.readFileSync(calendarPath,"utf8").replace(/\r?\n[ \t]/g,"");
+          const blocks=[...content.matchAll(/BEGIN:VEVENT\r?\n[\s\S]*?END:VEVENT/g)];
+          const matches=blocks.filter(match=>{
+            const uid=match[0].match(/^UID:(.*)$/m)?.[1].trim();
+            const summary=match[0].match(/^SUMMARY:(.*)$/m)?.[1].trim();
+            return event_id ? uid===event_id : summary?.toLowerCase().includes(title.trim().toLowerCase());
+          });
+          if(matches.length!==1) throw new Error(matches.length?"Mehrere Termine gefunden; bitte event_id auswählen":"Kein passender Termin gefunden");
+          const match=matches[0];
+          let replacement="";
+          if(action==="edit") {
+            if(new_title===undefined && date===undefined && time===undefined && all_day===undefined && reminders===undefined) throw new Error("Änderung erforderlich: new_title, date, time, all_day oder reminders");
+            // Parsed once synchronously; keep UID, recurrence rules and unrelated fields.
+            const parsed=parseIcs(content);
+            const uid=match[0].match(/^UID:(.*)$/m)?.[1].trim();
+            const event=parsed[uid];
+            if(!event) throw new Error("Termin konnte nicht gelesen werden");
+            const startDate=date!==undefined?parseGermanDate(date):new Date(event.start);
+            if(!startDate) throw new Error("Datum nicht erkannt");
+            let allDay=all_day===undefined?event.datetype==="date":all_day;
+            if(time!==undefined && time.trim()) {
+              const parsedTime=parseGermanTime(time);
+              if(!parsedTime) throw new Error("Uhrzeit nicht erkannt");
+              startDate.setHours(parsedTime.hours,parsedTime.minutes,0,0);allDay=false;
+            } else if(!allDay) {
+              const original=new Date(event.start);startDate.setHours(original.getHours(),original.getMinutes(),0,0);
+            }
+            if(allDay) startDate.setHours(0,0,0,0);
+            let endDate;
+            if(allDay) {endDate=new Date(startDate);endDate.setDate(endDate.getDate()+1);}
+            else endDate=new Date(+startDate+Math.max(60000,+new Date(event.end||event.start)-+new Date(event.start)||3600000));
+            const reminderMinutes=reminders===undefined?null:reminders.split(",").map(Number).filter(n=>Number.isInteger(n)&&n>0);
+            const generated=generateVEvent({title:new_title?.trim() || event.summary,startDate,endDate,allDay,reminders:reminderMinutes});
+            const properties=generated.split(/\r?\n/).filter(line=>/^(?:DTSTART|DTEND|DTSTAMP|SUMMARY)[;:]/.test(line));
+            let original=match[0];
+            if(reminders!==undefined) original=original.replace(/BEGIN:VALARM\r?\n[\s\S]*?END:VALARM\r?\n?/g,"");
+            original=original.split(/\r?\n/).filter(line=>! /^(?:DTSTART|DTEND|DTSTAMP|SUMMARY|DURATION)[;:]/.test(line));
+            original.splice(1,0,...properties);
+            if(reminders!==undefined) original.splice(original.length-1,0,...(generated.match(/BEGIN:VALARM[\s\S]*?END:VALARM/g)||[]));
+            replacement=original.join("\r\n");
+          }
+          atomicWrite(calendarPath,content.slice(0,match.index)+replacement+content.slice(match.index+match[0].length));
+          return {content:[{type:"text",text:JSON.stringify({status:"ok",result:action==="edit"?"Termin aktualisiert":"Termin gelöscht"})}],details:{}};
+        });
       } else {
         return { content: [{ type: "text", text: JSON.stringify({ error: "Unbekannte Aktion. Nutze today, day, add, edit, delete." }) }], details: {} };
       }
@@ -140,7 +155,7 @@ export default defineTool({
         if (!fs.existsSync(cal.path)) continue;
         try {
           const parsedData = ical.sync.parseFile(cal.path);
-          allEvents.push(...getEventsForDate(parsedData, targetDate));
+          allEvents.push(...eventsForDate(parsedData, targetDate));
         } catch (_) { /* skip unreadable calendar */ }
       }
       // Sort combined events (all-day first, then by time)
@@ -151,9 +166,9 @@ export default defineTool({
       });
       if (allEvents.length === 0) return { content: [{ type: "text", text: JSON.stringify({ result: `Keine Termine ${dayLabel}.` }) }], details: {} };
       const result = allEvents.map(e => formatEventForTTS(e)).join(". ") + ".";
-      return { content: [{ type: "text", text: JSON.stringify({ result }) }], details: {} };
+      return { content: [{ type: "text", text: JSON.stringify({ result, events: allEvents }) }], details: {} };
     } catch (e) {
-      return { content: [{ type: "text", text: JSON.stringify({ result: "Kalender-Fehler." }) }], details: {} };
+      return { content: [{ type: "text", text: JSON.stringify({ error: e.message }) }], details: {} };
     }
   },
 });

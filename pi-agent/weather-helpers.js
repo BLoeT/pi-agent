@@ -1,3 +1,4 @@
+import { fetchResponse } from "./lib/http.js";
 /**
  * Weather Tool helper functions.
  * Exported separately for testability (used by weather.test.js and property tests).
@@ -55,7 +56,7 @@ export async function geocodeLocation(locationName) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
   try {
-    const resp = await fetch(url, { signal: controller.signal });
+    const resp = await fetchResponse(url, { signal: controller.signal });
     if (!resp.ok) return null;
     const data = await resp.json();
     if (!data.results || data.results.length === 0) {

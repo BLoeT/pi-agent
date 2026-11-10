@@ -1,3 +1,4 @@
+import { eventsForDate } from "../lib/calendar.js";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import fs from "fs";
@@ -22,19 +23,6 @@ function formatEventForTTS(event) {
   const s = new Date(event.start);
   const time = s.getMinutes() === 0 ? `Um ${s.getHours()} Uhr` : `Um ${s.getHours()} Uhr ${s.getMinutes()}`;
   return `${time}: ${event.summary || "Termin"}`;
-}
-
-function getEventsForDate(parsedData, targetDate) {
-  const events = [];
-  for (const key of Object.keys(parsedData)) {
-    const event = parsedData[key];
-    if (event.type !== "VEVENT") continue;
-    if (eventOccursOnDate(event, targetDate)) {
-      events.push({ summary: event.summary, start: new Date(event.start), end: new Date(event.end || event.start), datetype: event.datetype });
-    }
-  }
-  events.sort((a, b) => { if (isAllDayEvent(a) && !isAllDayEvent(b)) return -1; if (!isAllDayEvent(a) && isAllDayEvent(b)) return 1; return a.start - b.start; });
-  return events;
 }
 
 export default defineTool({
@@ -70,7 +58,7 @@ export default defineTool({
         const name = i === 0 ? "Heute" : i === 1 ? "Morgen" : weekdays[d.getDay()];
         const dateStr = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.`;
         // Collect events from all calendars for this day
-        const events = parsedCalendars.flatMap(pd => getEventsForDate(pd, d));
+        const events = parsedCalendars.flatMap(pd => eventsForDate(pd, d));
         events.sort((a, b) => a.start - b.start);
         totalEvents += events.length;
         parts.push(events.length > 0 ? `${name} (${dateStr}): ${events.map(e => formatEventForTTS(e)).join("; ")}` : `${name} (${dateStr}): frei`);

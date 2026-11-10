@@ -1,0 +1,11 @@
+*
+!pi-agent/
+!pi-agent/**
+!pi-telegram/
+!pi-telegram/**
+!shared/
+!shared/**
+**/node_modules
+**/.git
+**/__pycache__
+**/.env

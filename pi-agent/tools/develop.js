@@ -3,7 +3,7 @@ import { Type } from "@sinclair/typebox";
 import fs from "fs";
 import path from "path";
 import { getCurrentUserId, userHasPermission } from "../lib/users.js";
-import { PLUGINS_DIR, ensurePluginsDir, readPluginMeta, writePluginMeta } from "../lib/plugins.js";
+import { PLUGINS_DIR, getPluginInfo, ensurePluginsDir, readPluginMeta, writePluginMeta } from "../lib/plugins.js";
 
 const PLUGIN_TEMPLATE = `const tool = {
   name: "TOOL_NAME",
@@ -41,7 +41,7 @@ function normalizeFilename(filename) {
 }
 
 function isValidFilename(fname) {
-  return !fname.includes('/') && !fname.includes('..');
+  return !fname.includes('/') && !fname.includes('\\') && !fname.includes('..');
 }
 
 export default defineTool({
@@ -52,7 +52,7 @@ export default defineTool({
     action: Type.String({ description: "create_plugin, edit_plugin, delete_plugin, list_plugins, show_template, grant_access, revoke_access" }),
     filename: Type.Optional(Type.String({ description: "Dateiname (z.B. jokes.js)" })),
     code: Type.Optional(Type.String({ description: "Kompletter Plugin-Code" })),
-    allowed_users: Type.Optional(Type.Array(Type.String(), { description: "Liste der User-IDs die das Plugin nutzen dürfen (leer/weggelassen = alle). Für create_plugin." })),
+    allowed_users: Type.Optional(Type.Array(Type.String(), { description: "Freigegebene Admin-IDs; leer = niemand, weggelassen = erstellender Admin." })),
     user: Type.Optional(Type.String({ description: "Einzelner User für grant_access/revoke_access (z.B. jaqueline)" })),
   }),
   execute: async (_toolCallId, { action, filename, code, allowed_users, user }) => {
@@ -60,6 +60,7 @@ export default defineTool({
       return { content: [{ type: "text", text: JSON.stringify({ error: "Keine Admin-Berechtigung" }) }], details: {} };
     }
     try {
+      if (!["list_plugins", "show_template"].includes(action) && process.env.RIBO_ALLOW_PLUGIN_EDIT !== "true") throw new Error("Plugin-Änderungen sind standardmäßig deaktiviert; Code zuerst lokal prüfen");
       ensurePluginsDir();
       switch (action) {
         case "list_plugins": {
@@ -67,12 +68,11 @@ export default defineTool({
           if (files.length === 0) return { content: [{ type: "text", text: JSON.stringify({ status: "ok", message: "Keine Plugins.", plugins: [] }) }], details: {} };
           const infos = files.map(f => {
             try {
-              const c = fs.readFileSync(path.join(PLUGINS_DIR, f), "utf-8");
-              const n = c.match(/name:\s*["']([^"']+)["']/); const d = c.match(/description:\s*["']([^"']+)["']/);
+              const info=getPluginInfo(f);
               const meta = readPluginMeta(f);
-              const scope = (meta.allowed_users && meta.allowed_users.length > 0) ? meta.allowed_users.join(", ") : "alle";
-              return { file: f, name: n?.[1] || f, description: d?.[1]?.slice(0, 80) || "", access: scope };
-            } catch (_) { return { file: f, name: f, description: "", access: "alle" }; }
+              const scope = meta.allowed_users===null ? "alle Admins" : meta.allowed_users.length ? meta.allowed_users.join(", ") : "niemand";
+              return { file: f, name: info.name, description: info.description.slice(0,80), access: scope };
+            } catch (_) { return { file: f, name: f, description: "", access: "niemand" }; }
           });
           return { content: [{ type: "text", text: JSON.stringify({ status: "ok", message: infos.map(p => `${p.file}: ${p.name} (Zugriff: ${p.access})`).join("\n"), plugins: infos }) }], details: {} };
         }
@@ -85,12 +85,9 @@ export default defineTool({
           if (fs.existsSync(path.join(PLUGINS_DIR, fname))) return { content: [{ type: "text", text: JSON.stringify({ error: `"${fname}" existiert. Nutze edit_plugin.` }) }], details: {} };
           fs.writeFileSync(path.join(PLUGINS_DIR, fname), code, "utf-8");
 
-          // Write access metadata if provided
-          let accessMsg = "für alle User verfügbar";
-          if (allowed_users && allowed_users.length > 0) {
-            writePluginMeta(fname, { allowed_users });
-            accessMsg = `nur für: ${allowed_users.join(", ")}`;
-          }
+          const allowed = allowed_users === undefined ? [getCurrentUserId()] : allowed_users;
+          writePluginMeta(fname, { allowed_users: allowed });
+          const accessMsg = allowed.length ? `nur für: ${allowed.join(", ")}` : "für niemanden freigegeben";
 
           return { content: [{ type: "text", text: JSON.stringify({ status: "ok", message: `Plugin "${fname}" erstellt (${accessMsg}). Neustart erforderlich.` }) }], details: {} };
         }
@@ -116,9 +113,10 @@ export default defineTool({
         case "grant_access": {
           if (!filename?.trim() || !user?.trim()) return { content: [{ type: "text", text: JSON.stringify({ error: "filename und user erforderlich" }) }], details: {} };
           const fname = normalizeFilename(filename);
+          if (!isValidFilename(fname)) throw new Error("Ungültiger Plugin-Dateiname");
           if (!fs.existsSync(path.join(PLUGINS_DIR, fname))) return { content: [{ type: "text", text: JSON.stringify({ error: `"${fname}" nicht gefunden` }) }], details: {} };
           const meta = readPluginMeta(fname);
-          const users = meta.allowed_users || [];
+          const users = meta.allowed_users === null ? [] : meta.allowed_users;
           const userId = user.trim().toLowerCase();
           if (users.includes(userId)) return { content: [{ type: "text", text: JSON.stringify({ status: "ok", message: `${userId} hat bereits Zugriff auf "${fname}"` }) }], details: {} };
           users.push(userId);
@@ -128,14 +126,15 @@ export default defineTool({
         case "revoke_access": {
           if (!filename?.trim() || !user?.trim()) return { content: [{ type: "text", text: JSON.stringify({ error: "filename und user erforderlich" }) }], details: {} };
           const fname = normalizeFilename(filename);
+          if (!isValidFilename(fname)) throw new Error("Ungültiger Plugin-Dateiname");
           if (!fs.existsSync(path.join(PLUGINS_DIR, fname))) return { content: [{ type: "text", text: JSON.stringify({ error: `"${fname}" nicht gefunden` }) }], details: {} };
           const meta = readPluginMeta(fname);
-          const users = meta.allowed_users || [];
+          const users = meta.allowed_users === null ? [] : meta.allowed_users;
           const userId = user.trim().toLowerCase();
           if (!users.includes(userId)) return { content: [{ type: "text", text: JSON.stringify({ status: "ok", message: `${userId} hatte keinen expliziten Zugriff auf "${fname}"` }) }], details: {} };
           const remaining = users.filter(u => u !== userId);
           writePluginMeta(fname, { allowed_users: remaining });
-          const note = remaining.length === 0 ? " (jetzt wieder für alle verfügbar!)" : "";
+          const note = remaining.length === 0 ? " (jetzt für niemanden verfügbar)" : "";
           return { content: [{ type: "text", text: JSON.stringify({ status: "ok", message: `${userId} hat keinen Zugriff mehr auf "${fname}"${note}. Neustart erforderlich.` }) }], details: {} };
         }
         default:

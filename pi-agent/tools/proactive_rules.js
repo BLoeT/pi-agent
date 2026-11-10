@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { readJson, atomicWrite, withFileLock } from "../lib/storage.js";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import fs from "fs";
@@ -8,31 +10,12 @@ import { getCurrentUserId } from "../lib/users.js";
 const RULES_PATH = "/workspace/proactive_rules.json";
 
 function loadRules() {
-  try {
-    if (!fs.existsSync(RULES_PATH)) return [];
-    const content = fs.readFileSync(RULES_PATH, "utf-8");
-    const data = JSON.parse(content);
-    return Array.isArray(data) ? data : [];
-  } catch (e) {
-    console.error("⚠️ Failed to load proactive-rules.json:", e.message);
-    return [];
-  }
+  const rules=readJson(RULES_PATH,[]);
+  if(!Array.isArray(rules)) throw new Error("Ungültige Regeldatei; Original bleibt erhalten");
+  return rules;
 }
-
-function saveRules(rules) {
-  try {
-    fs.mkdirSync(path.dirname(RULES_PATH), { recursive: true });
-    fs.writeFileSync(RULES_PATH, JSON.stringify(rules, null, 2), "utf-8");
-    return true;
-  } catch (e) {
-    console.error("❌ Failed to save proactive-rules.json:", e.message);
-    return false;
-  }
-}
-
-function findRuleIndex(rules, id) {
-  return rules.findIndex(r => r.id === id);
-}
+function saveRules(rules) { atomicWrite(RULES_PATH,JSON.stringify(rules,null,2));return true; }
+function findRuleIndex(rules,id,userId) {return rules.findIndex(r=>r.id===id && r.userId===userId);}
 
 function validateRule(rule) {
   const required = ["id", "userId", "name", "prompt", "hour", "minute", "weekdays"];
@@ -40,10 +23,10 @@ function validateRule(rule) {
   if (missing.length > 0) {
     throw new Error(`Fehlende Felder: ${missing.join(", ")}`);
   }
-  if (typeof rule.hour !== "number" || rule.hour < 0 || rule.hour > 23) {
+  if (!Number.isInteger(rule.hour) || rule.hour < 0 || rule.hour > 23) {
     throw new Error("hour muss 0-23 sein");
   }
-  if (typeof rule.minute !== "number" || rule.minute < 0 || rule.minute > 59) {
+  if (!Number.isInteger(rule.minute) || rule.minute < 0 || rule.minute > 59) {
     throw new Error("minute muss 0-59 sein");
   }
   if (!Array.isArray(rule.weekdays) || rule.weekdays.length === 0) {
@@ -84,6 +67,7 @@ export default defineTool({
     if (denied) return denied;
 
     try {
+      return withFileLock(RULES_PATH, () => {
       let rules = loadRules();
       const currentUserId = getCurrentUserId();
 
@@ -119,7 +103,7 @@ export default defineTool({
         if (!weekdays) weekdays = ["montag", "dienstag", "mittwoch", "donnerstag", "freitag", "samstag", "sonntag"];
 
         const newRule = {
-          id: name.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, ""),
+          id: randomUUID(),
           userId: currentUserId,
           name: name.trim(),
           prompt: prompt.trim(),
@@ -131,8 +115,8 @@ export default defineTool({
 
         validateRule(newRule);
 
-        if (rules.some(r => r.id === newRule.id && r.userId === currentUserId)) {
-          return { content: [{ type: "text", text: JSON.stringify({ error: `Regel mit ID '${newRule.id}' existiert bereits` }) }], details: {} };
+        if (rules.some(r => r.userId === currentUserId && r.name.trim().toLowerCase() === newRule.name.toLowerCase())) {
+          return { content: [{ type: "text", text: JSON.stringify({ error: `Regel mit Namen '${newRule.name}' existiert bereits` }) }], details: {} };
         }
 
         rules.push(newRule);
@@ -148,7 +132,7 @@ export default defineTool({
         if (!id) {
           return { content: [{ type: "text", text: JSON.stringify({ error: "id erforderlich" }) }], details: {} };
         }
-        const idx = findRuleIndex(rules, id);
+        const idx = findRuleIndex(rules, id, currentUserId);
         if (idx === -1) {
           return { content: [{ type: "text", text: JSON.stringify({ error: "Regel nicht gefunden" }) }], details: {} };
         }
@@ -179,7 +163,7 @@ export default defineTool({
         if (!id) {
           return { content: [{ type: "text", text: JSON.stringify({ error: "id erforderlich" }) }], details: {} };
         }
-        const idx = findRuleIndex(rules, id);
+        const idx = findRuleIndex(rules, id, currentUserId);
         if (idx === -1) {
           return { content: [{ type: "text", text: JSON.stringify({ error: "Regel nicht gefunden" }) }], details: {} };
         }
@@ -202,7 +186,7 @@ export default defineTool({
         if (!id) {
           return { content: [{ type: "text", text: JSON.stringify({ error: "id erforderlich" }) }], details: {} };
         }
-        const idx = findRuleIndex(rules, id);
+        const idx = findRuleIndex(rules, id, currentUserId);
         if (idx === -1) {
           return { content: [{ type: "text", text: JSON.stringify({ error: "Regel nicht gefunden" }) }], details: {} };
         }
@@ -221,6 +205,7 @@ export default defineTool({
       }
 
       return { content: [{ type: "text", text: JSON.stringify({ error: "Unbekannte action", valid: ["list", "add", "update", "delete", "toggle", "get"] }) }], details: {} };
+      });
     } catch (e) {
       return { content: [{ type: "text", text: JSON.stringify({ error: e.message }) }], details: {} };
     }

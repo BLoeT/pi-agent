@@ -165,7 +165,7 @@ export function loadSettings(): OllamaExtensionSettings {
 	return {
 		baseUrl,
 		keepAlive: resolveKeepAlive(persisted.keepAlive, process.env.OLLAMA_KEEP_ALIVE),
-		numCtx: 32768,
+		numCtx: contextLength ?? 32768,
 		ghostRetries,
 		contextLength,
 		throughput: resolveEnabledFlag(process.env.OLLAMA_NATIVE_THROUGHPUT),

@@ -1,190 +1,47 @@
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
-import fs from "fs";
-import path from "path";
+import { recordInteraction } from "../lib/interactions.js";
+import { resolveWithin } from "../lib/security.js";
 import { getCurrentUserId, getUserWorkspacePath } from "../lib/users.js";
+import { loadMemories, searchMemories, changeMemory, MemoryInputError } from "../lib/memory-store.js";
 
-function getMemoryDir() {
-  const userId = getCurrentUserId();
-  return path.join(getUserWorkspacePath(userId), "memory");
-}
-
-function getMemoryFile() {
-  return path.join(getMemoryDir(), "long_term.json");
-}
-
-function getHabitsFile() {
-  return path.join(getMemoryDir(), "habits_log.json");
-}
-
-function readMemory() {
-  const filePath = getMemoryFile();
-  if (!fs.existsSync(filePath)) return [];
-  try {
-    return JSON.parse(fs.readFileSync(filePath, "utf-8"));
-  } catch (_) { return []; }
-}
-
-function writeMemory(entries) {
-  const dir = getMemoryDir();
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(getMemoryFile(), JSON.stringify(entries, null, 2), "utf-8");
-}
-
-function readHabitsLog() {
-  const filePath = getHabitsFile();
-  if (!fs.existsSync(filePath)) return [];
-  try {
-    return JSON.parse(fs.readFileSync(filePath, "utf-8"));
-  } catch (_) { return []; }
-}
-
-function writeHabitsLog(log) {
-  const dir = getMemoryDir();
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(getHabitsFile(), JSON.stringify(log, null, 2), "utf-8");
-}
+const actions = ['remember','recall','profile','update','pin','unpin','forget','forget_all','summarize_session','log_interaction'];
+const reply = value => ({content:[{type:'text',text:JSON.stringify(value)}],details:{}});
 
 export default defineTool({
-  name: "memory",
-  label: "Memory",
-  description: "Langzeitgedächtnis — speichert wichtige Fakten, Zusammenfassungen und Präferenzen über den Nutzer. Nutze dieses Tool proaktiv wenn der Nutzer etwas Wichtiges erwähnt das für die Zukunft relevant ist. Actions: remember (Fakt speichern), recall (Erinnerungen abrufen), forget (Erinnerungen löschen), forget_all (alles vergessen), summarize_session (aktuelle Sitzung zusammenfassen und speichern), log_interaction (Interaktion für Gewohnheiten-Analyse loggen).",
+  name: "memory", label: "Memory",
+  description: "Dauerhaftes Nutzergedächtnis. remember speichert; core:true für wichtiges Grundwissen, das jede Session begleitet (max. 20 Fakten). recall sucht weitere Erinnerungen, profile zeigt Grundwissen. update korrigiert per id; pin/unpin nehmen einen Eintrag ins Grundwissen auf bzw. heraus (ohne Löschen). forget löscht per id oder Text, forget_all alles. summarize_session speichert eine Zusammenfassung. log_interaction ist nur für Kompatibilität; Server protokolliert Tools automatisch.",
   parameters: Type.Object({
-    action: Type.String({ description: "remember, recall, forget, forget_all, summarize_session, log_interaction" }),
-    text: Type.Optional(Type.String({ description: "Fakt/Zusammenfassung zum Merken (remember, summarize_session) oder Suchbegriff (forget, recall)" })),
-    category: Type.Optional(Type.String({ description: "Kategorie: preference, fact, session_summary, interest, relationship, habit" })),
-    tool_used: Type.Optional(Type.String({ description: "Tool-Name für log_interaction (z.B. weather, calendar)" })),
+    action: Type.String({description:actions.join(', ')}),
+    text: Type.Optional(Type.String({maxLength:12000,description:'Fakt, neuer Inhalt bei update oder Suchtext für recall/forget'})),
+    id: Type.Optional(Type.String({description:'Exakte Erinnerungs-ID aus recall/profile für update, pin, unpin oder forget'})),
+    core: Type.Optional(Type.Boolean({description:'Wichtiges Grundwissen dauerhaft jeder Session mitgeben; bei remember/update'})),
+    category: Type.Optional(Type.String({description:'preference, fact, relationship, interest, habit, session_summary'})),
+    tool_used: Type.Optional(Type.String({description:'Nur Legacy log_interaction'})),
   }),
-  execute: async (_toolCallId, { action, text, category, tool_used }) => {
+  execute: async (_callId, params) => {
     try {
-      switch (action) {
-        case "remember": {
-          if (!text?.trim()) return { content: [{ type: "text", text: JSON.stringify({ error: "text erforderlich" }) }], details: {} };
-
-          const entries = readMemory();
-          const entry = {
-            id: Math.random().toString(36).slice(2, 10),
-            text: text.trim(),
-            category: category || "fact",
-            created_at: new Date().toISOString(),
-          };
-          entries.push(entry);
-
-          // Keep max 100 entries (oldest get removed)
-          if (entries.length > 100) {
-            entries.splice(0, entries.length - 100);
-          }
-
-          writeMemory(entries);
-          return { content: [{ type: "text", text: JSON.stringify({ status: "ok", message: `Gemerkt: "${text.trim().slice(0, 60)}${text.trim().length > 60 ? "..." : ""}"` }) }], details: {} };
-        }
-
-        case "recall": {
-          const entries = readMemory();
-          if (entries.length === 0) {
-            return { content: [{ type: "text", text: JSON.stringify({ status: "ok", message: "Keine Erinnerungen gespeichert.", memories: [] }) }], details: {} };
-          }
-
-          let filtered = entries;
-
-          // Filter by search term if provided
-          if (text?.trim()) {
-            const search = text.trim().toLowerCase();
-            filtered = entries.filter(e => e.text.toLowerCase().includes(search) || (e.category && e.category.toLowerCase().includes(search)));
-          }
-
-          // Filter by category if provided
-          if (category) {
-            filtered = filtered.filter(e => e.category === category);
-          }
-
-          if (filtered.length === 0) {
-            return { content: [{ type: "text", text: JSON.stringify({ status: "ok", message: text ? `Keine Erinnerungen zu "${text}" gefunden.` : "Keine Erinnerungen in dieser Kategorie.", memories: [] }) }], details: {} };
-          }
-
-          // Return most recent first
-          filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-          const limited = filtered.slice(0, 20);
-          const formatted = limited.map(e => `[${e.category}] ${e.text}`).join("\n");
-
-          return { content: [{ type: "text", text: JSON.stringify({ status: "ok", message: `${filtered.length} Erinnerung(en):\n${formatted}`, memories: limited, total: filtered.length }) }], details: {} };
-        }
-
-        case "forget": {
-          if (!text?.trim()) return { content: [{ type: "text", text: JSON.stringify({ error: "Suchbegriff erforderlich" }) }], details: {} };
-
-          const entries = readMemory();
-          const search = text.trim().toLowerCase();
-          const before = entries.length;
-          const remaining = entries.filter(e => !e.text.toLowerCase().includes(search));
-          const removed = before - remaining.length;
-
-          if (removed === 0) {
-            return { content: [{ type: "text", text: JSON.stringify({ status: "ok", message: `Keine Erinnerungen zu "${text}" gefunden.` }) }], details: {} };
-          }
-
-          writeMemory(remaining);
-          return { content: [{ type: "text", text: JSON.stringify({ status: "ok", message: `${removed} Erinnerung(en) zu "${text}" gelöscht.` }) }], details: {} };
-        }
-
-        case "forget_all": {
-          const entries = readMemory();
-          const count = entries.length;
-          writeMemory([]);
-          return { content: [{ type: "text", text: JSON.stringify({ status: "ok", message: count > 0 ? `Alle ${count} Erinnerungen gelöscht.` : "Keine Erinnerungen vorhanden." }) }], details: {} };
-        }
-
-        case "summarize_session": {
-          if (!text?.trim()) return { content: [{ type: "text", text: JSON.stringify({ error: "Zusammenfassung erforderlich" }) }], details: {} };
-
-          const entries = readMemory();
-
-          // Remove old session summaries (keep only last 5)
-          const nonSummaries = entries.filter(e => e.category !== "session_summary");
-          const summaries = entries.filter(e => e.category === "session_summary");
-          const recentSummaries = summaries.slice(-4); // Keep last 4, add new one = 5
-
-          const entry = {
-            id: Math.random().toString(36).slice(2, 10),
-            text: text.trim(),
-            category: "session_summary",
-            created_at: new Date().toISOString(),
-          };
-
-          const updated = [...nonSummaries, ...recentSummaries, entry];
-          writeMemory(updated);
-
-          return { content: [{ type: "text", text: JSON.stringify({ status: "ok", message: "Session-Zusammenfassung gespeichert." }) }], details: {} };
-        }
-
-        case "log_interaction": {
-          if (!tool_used?.trim()) return { content: [{ type: "text", text: JSON.stringify({ error: "tool_used erforderlich" }) }], details: {} };
-
-          const log = readHabitsLog();
-          const now = new Date();
-
-          log.push({
-            tool: tool_used.trim(),
-            timestamp: now.toISOString(),
-            weekday: now.toLocaleDateString("de-DE", { weekday: "long" }),
-            hour: now.getHours(),
-          });
-
-          // Keep last 500 entries
-          if (log.length > 500) {
-            log.splice(0, log.length - 500);
-          }
-
-          writeHabitsLog(log);
-          return { content: [{ type: "text", text: JSON.stringify({ status: "ok", logged: true }) }], details: {} };
-        }
-
-        default:
-          return { content: [{ type: "text", text: JSON.stringify({ error: "Unbekannte Aktion. Verfügbar: remember, recall, forget, forget_all, summarize_session, log_interaction" }) }], details: {} };
+      if (!actions.includes(params.action)) throw Error('Unbekannte Gedächtnisaktion');
+      if (params.core !== undefined && typeof params.core !== 'boolean') throw Error('core muss boolean sein');
+      if (params.action === 'log_interaction') {
+        recordInteraction(params.tool_used?.trim());
+        return reply({status:'ok',logged:true});
       }
-    } catch (e) {
-      console.error(`❌ Memory Tool error (${action}):`, e.message);
-      return { content: [{ type: "text", text: `Error: Gedächtnis-Fehler: ${e.message}` }], details: {} };
+      const file = resolveWithin(getUserWorkspacePath(getCurrentUserId()),'memory/long_term.json');
+      if (params.action === 'recall' || params.action === 'profile') {
+        const entries = loadMemories(file);
+        let found = params.action === 'profile' ? entries.filter(entry => entry.core === true) : entries;
+        if (params.category) found = found.filter(entry => entry.category === params.category);
+        if (params.text?.trim()) {
+          const exact = found.filter(entry => entry.text.toLowerCase().includes(params.text.trim().toLowerCase()));
+          found = [...new Set([...exact,...searchMemories(found,params.text)])];
+        } else found = [...found].reverse();
+        return reply({status:'ok',memories:found.slice(0,20),total:found.length});
+      }
+      return reply(changeMemory(file,params));
+    } catch (error) {
+      // Never expose memory content or filesystem paths in a public error.
+      return {content:[{type:'text',text:error instanceof MemoryInputError ? error.message : 'Gedächtnis konnte nicht geändert/gelesen werden. Prüfe Aktion, ID und Text; vorhandene Daten bleiben bei einem Speicherfehler erhalten.'}],details:{},isError:true};
     }
   },
 });

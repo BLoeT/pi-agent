@@ -16,71 +16,22 @@ else
 
     cd "$BASE_DIR/govee2mqtt"
 
-    GOVEE_MQTT_HOST=127.0.0.1 \
-    GOVEE_MQTT_PORT=1883 \
-    GOVEE_LAN_SCAN=192.168.178.105 \
-    RUST_LOG=info \
-    ./target/release/govee serve &
+    python3 "$BASE_DIR/scripts/run-govee.py" &
 
     echo "✓ govee2mqtt gestartet"
 fi
 
 
 # --------------------------------------------------
-# hey-ribo
+# Ribo Audio + Imagegen (native Hintergrunddienste)
+# Erkennt auch Dienste, die außerhalb dieses Skripts gestartet wurden.
+# Logs: .logs/voice.log und .logs/imagegen.log
 # --------------------------------------------------
 
-if pgrep -f "uv run hey-ribo.py" >/dev/null; then
-    echo "✓ hey-ribo läuft bereits"
-else
-    echo "→ Starte hey-ribo..."
-
-    osascript <<EOF
-tell application "Terminal"
-    do script "cd '$BASE_DIR' && uv run hey-ribo.py"
-end tell
-EOF
-
-    echo "✓ hey-ribo gestartet"
+if ! python3 "$BASE_DIR/scripts/start-native.py"; then
+    echo "❌ Audio-/Bilddienste konnten nicht vollständig gestartet werden."
+    exit 1
 fi
-
-
-# --------------------------------------------------
-# imagegen-service
-# --------------------------------------------------
-
-if pgrep -f "uv run imagegen-service/server.py" >/dev/null; then
-    echo "✓ imagegen-service läuft bereits"
-else
-    echo "→ Starte imagegen-service..."
-
-    osascript <<EOF
-tell application "Terminal"
-    do script "cd '$BASE_DIR' && uv run imagegen-service/server.py"
-end tell
-EOF
-
-    echo "✓ imagegen-service gestartet"
-fi
-
-
-# --------------------------------------------------
-# roblox-bridge (Roblox Studio MCP Bridge)
-# --------------------------------------------------
-
-#if pgrep -f "uv run roblox-mcp/roblox_bridge.py" >/dev/null; then
-#    echo "✓ roblox-bridge läuft bereits"
-#else
-#    echo "→ Starte roblox-bridge..."
-#
-#    osascript <<EOF
-#tell application "Terminal"
-#    do script "cd '$BASE_DIR' && uv run roblox-mcp/roblox_bridge.py"
-#end tell
-#EOF
-#
-#    echo "✓ roblox-bridge gestartet"
-#fi
 
 
 echo ""

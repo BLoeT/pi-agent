@@ -1,3 +1,4 @@
+import { fetchResponse } from "../lib/http.js";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { readList, writeList } from "../lib/helpers.js";
@@ -5,10 +6,10 @@ import { checkPermission } from "../lib/users.js";
 
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY || "";
 
-async function searchRecipes(query) {
+async function searchRecipes(query, signal) {
   if (!TAVILY_API_KEY) return { error: "Web-Suche nicht konfiguriert (TAVILY_API_KEY fehlt)" };
   try {
-    const resp = await fetch("https://api.tavily.com/search", {
+    const resp = await fetchResponse("https://api.tavily.com/search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -18,7 +19,7 @@ async function searchRecipes(query) {
         max_results: 3,
         include_answer: true,
       }),
-    });
+    }, {signal,timeout:15000});
     if (!resp.ok) return { error: `Suche fehlgeschlagen: ${resp.status}` };
     const data = await resp.json();
     return {
@@ -47,7 +48,7 @@ export default defineTool({
     }), { description: "Zutaten-Liste zum Hinzufügen" })),
     list_name: Type.Optional(Type.String({ description: "Name der Einkaufsliste (default: Einkaufsliste)" })),
   }),
-  execute: async (_toolCallId, { action, query, ingredients, list_name }) => {
+  execute: async (_toolCallId, { action, query, ingredients, list_name }, signal) => {
     const denied = checkPermission("cooking");
     if (denied) return denied;
     try {
@@ -55,7 +56,7 @@ export default defineTool({
         case "search_recipe": {
           if (!query?.trim()) return { content: [{ type: "text", text: JSON.stringify({ error: "Suchanfrage erforderlich" }) }], details: {} };
 
-          const result = await searchRecipes(query.trim());
+          const result = await searchRecipes(query.trim(), signal);
           if (result.error) return { content: [{ type: "text", text: JSON.stringify({ error: result.error }) }], details: {} };
 
           let message = "";

@@ -1,3 +1,5 @@
+import { readJson, atomicWrite } from "../lib/storage.js";
+import { resolveWithin } from "../lib/security.js";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import fs from "fs";
@@ -6,26 +8,29 @@ import { getCurrentUserId, getUserWorkspacePath, checkPermission } from "../lib/
 
 function getExpensesDir() {
   const userId = getCurrentUserId();
-  return path.join(getUserWorkspacePath(userId), "expenses");
+  return resolveWithin(getUserWorkspacePath(userId), "expenses");
 }
 
 function getMonthFile(year, month) {
+  if (!Number.isInteger(year) || year < 1900 || year > 2200 || !Number.isInteger(month) || month < 1 || month > 12) throw new Error("Ungültiger Monat/Jahr");
   const dir = getExpensesDir();
   fs.mkdirSync(dir, { recursive: true });
   const filename = `${year}-${String(month).padStart(2, "0")}.json`;
-  return path.join(dir, filename);
+  return resolveWithin(dir, filename);
 }
 
 function readMonthExpenses(year, month) {
   const filePath = getMonthFile(year, month);
   if (!fs.existsSync(filePath)) return [];
-  return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  const entries=readJson(filePath,[]);
+  if(!Array.isArray(entries)) throw new Error("Ungültige Ausgabendatei");
+  return entries;
 }
 
 function writeMonthExpenses(year, month, expenses) {
   const filePath = getMonthFile(year, month);
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, JSON.stringify(expenses, null, 2), "utf-8");
+  atomicWrite(filePath, JSON.stringify(expenses, null, 2));
 }
 
 function generateId() {
@@ -68,18 +73,20 @@ export default defineTool({
         }
 
         case "add": {
-          if (!amount || amount <= 0) return { content: [{ type: "text", text: JSON.stringify({ error: "Betrag erforderlich (z.B. 33.50)" }) }], details: {} };
+          if (!Number.isFinite(amount) || amount <= 0) return { content: [{ type: "text", text: JSON.stringify({ error: "Betrag erforderlich (z.B. 33.50)" }) }], details: {} };
           if (!category?.trim()) return { content: [{ type: "text", text: JSON.stringify({ error: "Kategorie erforderlich. Verfügbar: " + CATEGORIES.join(", ") }) }], details: {} };
 
           // Parse date or use today
           let expenseDate = now;
           if (date?.trim()) {
             const match = date.trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})?$/);
+            if (!match) throw new Error("Datum nicht erkannt; bitte TT.MM.YYYY oder TT.MM. verwenden");
             if (match) {
               const day = parseInt(match[1], 10);
               const mon = parseInt(match[2], 10) - 1;
               const yr = match[3] ? parseInt(match[3], 10) : now.getFullYear();
               expenseDate = new Date(yr, mon, day);
+              if(expenseDate.getFullYear()!==yr || expenseDate.getMonth()!==mon || expenseDate.getDate()!==day) throw new Error("Ungültiges Datum");
             }
           }
 
@@ -145,7 +152,7 @@ export default defineTool({
           }
 
           // Group by category
-          const byCategory = {};
+          const byCategory = Object.create(null);
           let total = 0;
           for (const e of expenses) {
             if (!byCategory[e.category]) byCategory[e.category] = { total: 0, count: 0 };

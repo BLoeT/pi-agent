@@ -22,17 +22,16 @@ Persönlicher AI-Assistent mit Sprachsteuerung, Telegram-Bot, Smart-Home-Integra
 | 14 | **Lernkarten (Spaced Repetition)** | „Ich will Japanisch lernen" / „Frag mich ab" |
 | 15 | **Kochassistent** | „Was kann ich mit Kartoffeln kochen?" + Einkaufsliste |
 | 16 | **Ausgaben-Tracker** | „33€ für Spielzeug bei Amazon" / „Monatsübersicht" |
-| 17 | **Godot Spieleentwicklung** | „Erstell eine Spieler-Szene mit Bewegungslogik" |
-| 18 | **Bildgenerierung (FLUX)** | „Generier einen blauen Roboter, Pixel Art" |
-| 19 | **Multi-User** | Getrennte Daten, geteilte Kalender/Listen, Berechtigungen |
-| 20 | **Persönlichkeit pro User** | Beim ersten Kontakt: Wie soll ich mit dir reden? |
-| 21 | **Langzeitgedächtnis** | Merkt sich Fakten, fasst Sessions zusammen, selektives Vergessen |
-| 22 | **Proaktive Nachrichten** | Automatisch Wetter/Termine zur gewohnten Zeit |
-| 23 | **Gewohnheiten lernen** | Erkennt Muster, schlägt Automatisierung vor |
-| 24 | **Plugin-System** | „Bau dir ein Tool das Witze erzählt" (Admin) |
-| 25 | **Admin-Verwaltung** | „Leg User Liam an mit Gruppe Familie" |
-| 26 | **Dateien senden** | „Schick mir mein player.gd Script" / „Welche Bilder habe ich?" |
-| 27 | **Code-Projekte** | „Schreib mir ein JavaScript das CSVs zusammenführt" + ZIP-Export |
+| 17 | **Bildgenerierung (FLUX)** | „Generier einen blauen Roboter, Pixel Art" |
+| 18 | **Multi-User** | Getrennte Daten, geteilte Kalender/Listen, Berechtigungen |
+| 19 | **Persönlichkeit pro User** | Beim ersten Kontakt: Wie soll ich mit dir reden? |
+| 20 | **Langzeitgedächtnis** | Merkt sich Fakten, fasst Sessions zusammen, selektives Vergessen |
+| 21 | **Proaktive Nachrichten** | Automatisch Wetter/Termine zur gewohnten Zeit |
+| 22 | **Gewohnheiten lernen** | Erkennt Muster, schlägt Automatisierung vor |
+| 23 | **Plugin-System** | „Bau dir ein Tool das Witze erzählt" (Admin) |
+| 24 | **Admin-Verwaltung** | „Leg User Liam an mit Gruppe Familie" |
+| 25 | **Dateien senden** | „Schick mir mein main.js Script" / „Welche Bilder habe ich?" |
+| 26 | **Code-Projekte** | „Schreib mir ein JavaScript das CSVs zusammenführt" + ZIP-Export |
 
 ## Voraussetzungen
 
@@ -41,8 +40,7 @@ Persönlicher AI-Assistent mit Sprachsteuerung, Telegram-Bot, Smart-Home-Integra
 - Ollama installiert (`brew install ollama` auf Mac, [ollama.com](https://ollama.com) auf Linux)
 - [uv](https://docs.astral.sh/uv/) für native Python-Services (TTS/STT, Sprachsteuerung)
 - ffmpeg (`brew install ffmpeg`) + mpv (`brew install mpv`) für Audio
-- Optional: USB-Mikrofon für Sprachsteuerung (hey-ribo.py)
-- Optional: [Godot Engine 4.4](https://godotengine.org/download/) für Spieleentwicklung
+- Kein Mikrofon erforderlich: Audio-Service für TTS/STT, Musik und Timer.
 
 ## Setup
 
@@ -57,11 +55,11 @@ ollama pull qwen3.8:27b
 cp .env.example .env
 # TELEGRAM_BOT_TOKEN, HA_TOKEN, TAVILY_API_KEY eintragen
 
-# Native Services starten (TTS/STT + Sprachsteuerung + Musik + Timer)
-uv run hey-ribo.py
+# Native Services starten (TTS/STT + Musik + Timer + Timer)
+uv run --env-file .env --locked hey-ribo.py
 
 # Optional: Bildgenerierung starten (FLUX auf Apple Silicon)
-uv run imagegen-service/server.py
+uv run --env-file .env --locked imagegen-service/server.py
 
 # Docker Stack starten (Agent, Telegram-Bot, Home Assistant)
 docker compose up -d
@@ -95,7 +93,7 @@ Alles läuft über den **pi-agent** — egal ob via Telegram, Web-Chat oder Spra
 | Service        | Port  | Beschreibung                              | Läuft in      |
 |----------------|-------|-------------------------------------------|---------------|
 | pi-agent       | 8080  | AI Agent HTTP API + Web-Chat              | Docker        |
-| hey-ribo.py    | 8085  | TTS/STT + Musik + Timer + Sprachsteuerung | Nativ (macOS) |
+| hey-ribo.py    | 8085  | TTS/STT + Musik + Timer | Nativ (macOS) |
 | imagegen       | 8086  | Bildgenerierung (FLUX via MLX)            | Nativ (macOS) |
 | pi-telegram    | –     | Telegram-Bot (Text, Voice, Bilder)        | Docker        |
 | ha-service     | 8082  | Home Assistant Bridge (intern)            | Docker        |
@@ -110,7 +108,7 @@ Alles läuft über den **pi-agent** — egal ob via Telegram, Web-Chat oder Spra
 | `LLM_PROVIDER`       | LLM-Backend: `ollama` (lokal) oder `anthropic` (Claude API) | `ollama`                                                                    |
 | `ANTHROPIC_API_KEY`  | Claude API Key (nur bei `anthropic`) — API-Key, **nicht** das Abo | `sk-ant-xxxxxxxx`                                                     |
 | `PI_MODEL`           | Modell (Text + Tools + Vision). Leer = Provider-Default | `qwen3.8:27b` / `claude-sonnet-5`                                               |
-| `THINKING_LEVEL`     | Denk-Intensität (off/minimal/low/medium/high/xhigh/max) | `medium`                                                                        |
+| `THINKING_LEVEL`     | Standard-Denkintensität | `low`                                                                        |
 | `TELEGRAM_BOT_TOKEN` | Bot-Token von @BotFather für Telegram         | `123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11`                                              |
 | `HA_TOKEN`           | Long-Lived Access Token für Home Assistant    | `eyJhbGciOi...`                                                                           |
 | `TAVILY_API_KEY`     | API Key für Web-Suche (optional)              | `tvly-xxxxxxxxxxxxxxx`                                                                    |
@@ -147,7 +145,7 @@ Ribo hat ein eingebautes Chat-Interface. Nach dem Start erreichbar unter:
 http://localhost:8080
 ```
 
-Dark Theme, responsive, funktioniert auf Desktop und Handy. Nachrichten gehen direkt an den Agent mit allen Tools (Kalender, Godot, Smart Home etc.).
+Dark Theme, responsive, funktioniert auf Desktop und Handy. Nachrichten gehen direkt an den Agent mit allen Tools (Kalender, Smart Home etc.).
 
 ### Text-Prompt
 
@@ -234,13 +232,13 @@ Ribo unterstützt mehrere Nutzer mit getrennten Daten. Konfiguration über `work
     "enrico": {
       "name": "Enrico",
       "chat_id": 123456789,
-      "permissions": ["calendar", "notes", "lists", "godot", "imagegen", "smart_home", "music", "timer", ...],
+      "permissions": ["calendar", "notes", "lists", "imagegen", "smart_home", "music", "timer", ...],
       "groups": ["familie", "eltern"]
     },
     "jaqueline": {
       "name": "Jaqueline",
       "chat_id": 987654321,
-      "permissions": ["calendar", "notes", "lists", "godot", "imagegen", "smart_home", "music", "timer", ...],
+      "permissions": ["calendar", "notes", "lists", "imagegen", "smart_home", "music", "timer", ...],
       "groups": ["familie"]
     },
     "uwe": {
@@ -262,7 +260,6 @@ Ribo unterstützt mehrere Nutzer mit getrennten Daten. Konfiguration über `work
 | Kalender | Persönlich pro User + geteilte Gruppen-Kalender |
 | Notizen | Komplett getrennt pro User |
 | Listen | Persönlich + konfigurierbar geteilte Listen (z.B. Einkaufsliste) |
-| Godot-Projekte | Komplett getrennt pro User |
 | Generierte Bilder | Komplett getrennt, nur an Anforderer gesendet |
 | Smart Home / Musik | Geteilt (selber Haushalt), per Permission steuerbar |
 | Routinen | Geteilt |
@@ -279,7 +276,7 @@ Ein User kann in mehreren Gruppen sein. "Was steht im Kalender?" zeigt persönli
 ### Berechtigungen
 
 Nicht jeder User braucht Zugriff auf alle Features. Beispiel:
-- Uwe (anderer Haushalt) → kein Smart Home, keine Musik, kein Timer, kein Godot
+- Uwe (anderer Haushalt) → kein Smart Home, keine Musik, kein Timer
 - Enrico + Jaqueline → voller Zugriff
 
 ### Verzeichnisstruktur
@@ -292,7 +289,6 @@ workspace/
 │   │   ├── calendar.ics
 │   │   ├── notes.json
 │   │   ├── lists/
-│   │   ├── godot-project/
 │   │   └── generated-images/
 │   ├── jaqueline/
 │   │   └── ...
@@ -370,14 +366,14 @@ Benötigt `TAVILY_API_KEY` in der `.env`.
 
 Ribo erstellt Vokabel-Decks, generiert Karten und fragt dich ab. Karten werden nach dem SM-2 Algorithmus wiederholt — je besser du eine Karte kannst, desto seltener wird sie abgefragt. Funktioniert auch per Sprache via Telegram.
 
-## Hey Ribo – TTS/STT + Sprachsteuerung (macOS)
+## Hey Ribo – TTS/STT + Musik + Timer (macOS)
 
-Das Script `hey-ribo.py` ist der zentrale native Service auf macOS. Es stellt bereit:
+`hey-ribo.py` startet den nativen Audio-Service aus `ribo_audio.py`. Er stellt bereit:
 
 1. **TTS/STT API** (Port 8085) — `/tts` und `/transcribe` Endpoints für Telegram
 2. **Musik/Radio** — `/music/play`, `/music/stop`, `/music/volume`
 3. **Timer** — `/timer/create`, `/timer/cancel`, `/timer/list`
-4. **Sprachsteuerung** — Wake Word "Hey Ribo" mit MLX Whisper + Pocket TTS
+Es wird kein Mikrofon- oder Wake-Word-Listener gestartet.
 
 MLX Whisper nutzt die Metal GPU für schnelle Transkription.
 
@@ -386,18 +382,12 @@ MLX Whisper nutzt die Metal GPU für schnelle Transkription.
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Dependencies installieren und starten
-uv run hey-ribo.py
+uv run --env-file .env --locked hey-ribo.py
 ```
 
-### Standalone TTS/STT (ohne Sprachsteuerung)
-
-Falls nur der TTS/STT HTTP-Service benötigt wird (z.B. für Telegram-Voice ohne Mikrofon):
-
-```bash
-uv run hey-ribo.py
-```
-
-(Das Wake-Word kann ignoriert werden — der HTTP-Server auf Port 8085 läuft trotzdem.)
+TTS/STT arbeiten nacheinander; Status, Musik und Timer bleiben parallel erreichbar.
+Die Sprachausgabe hat eine begrenzte Warteschlange. Bei voller Auslastung liefert die API
+Status 503. Temporäre Audiodateien werden auch bei Verarbeitungsfehlern aufgeräumt.
 
 ## Bildgenerierung (FLUX auf Apple Silicon)
 
@@ -410,7 +400,7 @@ Ribo kann Bilder lokal generieren — komplett offline, Metal-beschleunigt via M
 uv pip install mflux
 
 # ImageGen Service starten (Port 8086)
-uv run imagegen-service/server.py
+uv run --env-file .env --locked imagegen-service/server.py
 ```
 
 Beim ersten Aufruf wird das FLUX-Modell automatisch von HuggingFace heruntergeladen (~12 GB für schnell, ~24 GB für dev). Danach läuft alles offline.
@@ -438,109 +428,42 @@ IMAGEGEN_MODEL=schnell
 IMAGEGEN_QUANTIZE=8
 ```
 
-## Godot — Spieleentwicklung
+## Plugins
 
-Ribo kann Godot-4-Spiele erstellen und bearbeiten. Er schreibt Szenen (`.tscn`), Scripts (`.gd`) und Ressourcen direkt ins Projektverzeichnis.
+Die vier gepflegten Plugins `send_message`, `reminders`, `file_reader` und `witz` liegen
+versioniert unter `pi-agent/plugins/`. Im lokalen `workspace/plugins/` liegen kleine
+Import-Dateien und die jeweiligen `.meta.json`-Freigaben. Die bestehenden Freigaben bleiben
+bei einem Rebuild erhalten. Neue eigene Plugins können weiterhin dort liegen.
 
-### Setup
+Nur Administratoren mit passender Freigabe dürfen Plugins ausführen. Fehlende, ungültige
+oder leere `allowed_users` verweigern den Zugriff; `null` erlaubt allen Admins die Nutzung.
+`develop` kann Plugins auflisten und eine Vorlage anzeigen. Automatische Code- und
+Freigabeänderungen sind standardmäßig gesperrt; Änderungen werden lokal geprüft und eingespielt.
 
-```bash
-# Godot 4.4 installieren (macOS)
-brew install --cask godot
-
-# Oder manuell von https://godotengine.org/download/
-
-# Pfad in .env setzen
-GODOT_PATH=/Applications/Godot.app/Contents/MacOS/Godot
-```
-
-### Nutzung
-
-```
-„Erstell ein neues 2D-Spiel namens SpaceShooter"
-„Erstell eine Spieler-Szene mit CharacterBody2D und Bewegungslogik"
-„Schreib ein Script für einen Gegner der dem Spieler folgt"
-„Zeig mir die Projektdateien"
-„Starte das Spiel"
-```
-
-### Was Ribo kann
-
-| Aktion | Beschreibung |
-|--------|-------------|
-| Projekt erstellen | `project.godot` + Standardverzeichnisse (scenes/, scripts/, assets/) |
-| Szenen schreiben | `.tscn`-Dateien mit Nodes, Shapes, Scripts |
-| Scripts schreiben | GDScript 4.x (`.gd`) mit typisierter Syntax |
-| Dateien lesen | Bestehende Szenen/Scripts anzeigen |
-| Dateien löschen | Aufräumen |
-
-Ribo schreibt die Dateien, du öffnest das Projekt in Godot zum Testen:
+Nach einer Neuinstallation lassen sich die geprüften Standard-Importdateien und fehlende
+Freigaben für einen bereits angelegten Administrator einrichten:
 
 ```bash
-# Projekt in Godot öffnen
-/Applications/Godot.app/Contents/MacOS/Godot --path workspace/users/enrico/godot-project/
-
-# Oder: Godot starten → Projekt importieren → workspace/users/enrico/godot-project/ auswählen
+python3 scripts/install-default-plugins.py --admin enrico
 ```
 
-### Projektstruktur
+Eigene vorhandene Plugins und bestehende Freigaben werden dabei nicht überschrieben.
+Plugins laufen im Agent-Prozess und haben dessen Node.js-Zugriff; sie sind kein isolierter
+Ausführungsbereich. Installiere daher nur geprüften Code.
 
-Ribo legt Projekte standardmäßig unter `workspace/godot-project/` an:
+Das Erinnerungs-Plugin unterstützt einmalige und tägliche/wöchentliche Telegram-Erinnerungen,
+z.B. `morgen 08:00`, `in 10 Minuten` und `jeden Montag um 09:00`. Alte Datensätze ohne `due_at`
+bleiben als solche erkennbar und können mit `reschedule` neu terminiert werden.
 
-```
-godot-project/
-├── project.godot
-├── scenes/
-│   ├── player.tscn
-│   ├── enemy.tscn
-│   └── level_01.tscn
-├── scripts/
-│   ├── player.gd
-│   ├── enemy.gd
-│   └── game_manager.gd
-└── assets/
-    ├── sprites/
-    └── audio/
-```
-
-## Plugin-System (Ribo erweitert sich selbst)
-
-Admins können Ribo bitten sich selbst neue Tools zu schreiben. Plugins werden als `.js`-Dateien in `workspace/plugins/` gespeichert und beim nächsten Neustart geladen.
-
-### Nutzung
-
-```
-„Bau dir ein Tool das Witze erzählen kann"
-„Erstell ein Plugin das den aktuellen Bitcoin-Kurs speichert"
-„Bau mir ein privates Tool für meine Arbeitszeit" (nur für dich)
-„Gib Jaqueline Zugriff auf das Arbeitszeit-Tool"
-„Zeig mir alle installierten Plugins"
-„Lösch das Witze-Plugin"
-```
-
-### Wie es funktioniert
-
-1. Du sagst Ribo was er können soll (nur als Admin)
-2. Ribo schreibt ein Plugin nach `workspace/plugins/tool-name.js`
-3. `docker compose restart pi-agent`
-4. Das neue Tool ist verfügbar
-
-Plugins haben vollen Zugriff auf Node.js APIs (fetch, fs, etc.) und folgen der gleichen Struktur wie die eingebauten Tools.
-
-### Zugriffskontrolle
-
-Plugins sind standardmäßig für alle User verfügbar. Du kannst sie einschränken:
-
-- Beim Erstellen: nur für bestimmte User (`allowed_users`)
-- `grant_access` / `revoke_access` — Zugriff nachträglich anpassen
-
-Die Zugriffsrechte werden in einer `<plugin>.meta.json` neben dem Plugin gespeichert. Nur Admins können Plugins erstellen und Zugriffe verwalten.
+Geplante Ribo-Aufträge bündeln Versandaufträge und Antwort: Der Scheduler liefert den
+vollständigen Inhalt einmal aus. Texte über dem Telegram-Limit werden als Textdatei in
+einer einzelnen Nachricht zugestellt.
 
 ## Plattform-Hinweise
 
 ### Mac (Apple Silicon) — Empfohlen
 - Ollama nutzt Metal GPU automatisch
-- hey-ribo.py für TTS/STT + Sprachsteuerung (MLX Whisper, Metal-beschleunigt)
+- hey-ribo.py für TTS/STT + Musik + Timer (MLX Whisper, Metal-beschleunigt)
 - TTS/STT läuft **nativ** (kein Docker) — deutlich schneller
 - Docker Desktop nur für Agent, Telegram-Bot und Home Assistant
 
@@ -573,7 +496,10 @@ sudo sysctl iogpu.wired_limit_mb=36000
 
 **Warum qwen3.8:27b?** Es ist multimodal — versteht Text UND Bilder/Videos nativ. Damit brauchst du **kein separates Vision-Modell** mehr (Agent + Vision in einem). Zusätzlich starkes Agentic/Tool-Calling-Verhalten und flexibles Reasoning (`THINKING_LEVEL`).
 
-**Thinking-Level:** qwen3.8 neigt bei "high" und höher zum Überdenken einfacher Befehle. Für Ribo ist **`medium`** ideal (Standard), für maximale Geschwindigkeit **`low`**. Mögliche Werte: `off, minimal, low, medium, high, xhigh, max`.
+**Thinking-Level:** Der lokale Standard ist `low` (Normal). Im Webchat lassen sich
+Normal, Gründlich (`high`) und Sehr gründlich (`xhigh`) wählen. In Telegram:
+`/modus normal`, `/modus gruendlich`, `/modus maximal`. Telegram merkt sich den Modus
+bis zum Bot-Neustart. Gründlichere Modi benötigen mehr Zeit.
 
 ### Cloud (LLM_PROVIDER=anthropic, Claude API)
 
@@ -601,28 +527,25 @@ PI_MODEL=claude-sonnet-5
 >
 > ℹ️ **Ollama-Fallback:** Bei `LLM_PROVIDER=anthropic` wird Ollama nicht mehr gebraucht. Der `open-webui`-Service (Chat-UI für Ollama) bleibt davon unberührt und kann weiter lokal laufen oder gestoppt werden.
 
-### Performance-Tuning (optional, 48 GB)
+### Laufzeit und Speicher
 
-Für maximalen Context (32k Token) mit Flash Attention und quantisiertem KV-Cache:
+Das vorhandene 64k-Modell und sein Modelfile bleiben erhalten. Der Server kürzt ältere
+Gesprächsrunden ab etwa 36.000 geschätzten Tokens oder 40 Nachrichten. Das ist eine
+konservative Schätzung, kein exakter Tokenizer. Ein einzelner übergroßer letzter Turn
+bleibt der Kontextbehandlung des SDK überlassen. Werkzeug-Textausgaben sind auf insgesamt
+24.000 Zeichen pro Ergebnis begrenzt; bei Kürzung bleiben Anfang und Ende erhalten.
 
-```bash
-# Optimiertes Modelfile erstellen
-ollama create ribo-agent -f - <<EOF
-FROM qwen3.8:27b
-PARAMETER num_ctx 32768
-PARAMETER flash_attention true
-PARAMETER num_gpu 99
-EOF
-```
+`IMAGEGEN_REUSE_MODEL=1` verwendet für Flux2-Textbilder einen einzelnen Modell-Worker.
+Ein Modellwechsel startet einen frischen Prozess. Nach `IMAGEGEN_MODEL_IDLE_SECONDS=60`
+Sekunden ohne Auftrag beendet er sich und gibt den Metal-Speicher frei. Andere Engines,
+Bildbearbeitung und Videos behalten ihre bisherigen CLI-Aufrufe. Bild und Video laufen
+nacheinander; weitere Generierungsanfragen erhalten währenddessen 503, Statusabfragen bleiben erreichbar.
 
-Dann in `.env`: `PI_MODEL=ribo-agent`
+Lokaler Test (256×256, Flux2 Klein 4B, 8 Bit, 4 Schritte, gleicher Seed/Prompt):
+erster Aufruf 7,29 s, zweiter Aufruf mit geladenem Modell 1,54 s. Das ist keine Prognose
+für große Bilder. Für Chat, Audio und Generierung werden Laufzeiten protokolliert;
+die neuen Messmeldungen enthalten keine Nachrichteninhalte.
 
-**Was das bringt:**
-- **Flash Attention** — Verarbeitet den Context blockweise, spart ~50% KV-Cache RAM
-- **num_gpu 99** — Alle Layer auf GPU (Metal), maximale Geschwindigkeit
-- **32k Context** — Doppelt so viel wie Standard, reicht für lange Lernkarten-Sessions und komplexe Konversationen
-
-Ohne dieses Tuning läuft der Agent mit 16k Context (docker-compose Default) — funktioniert gut für die meisten Aufgaben.
 
 ## Projektstruktur
 
@@ -633,10 +556,10 @@ pi-agent/
 ├── .gitignore
 ├── IDEAS.md                           ← Feature-Ideen
 ├── pyproject.toml                     ← Python-Dependencies (uv)
-├── hey-ribo.py                        ← TTS/STT + Sprachsteuerung + Musik (nativ, macOS)
+├── hey-ribo.py                        ← TTS/STT + Musik + Timer (nativ, macOS)
 ├── pi-agent/
 │   ├── Dockerfile
-│   ├── server.js                      ← Entry-Point (Express + Routing + Sessions)
+│   ├── server.js                      ← Prozessstart; app.js/http/services sind getrennt
 │   ├── lib/
 │   │   ├── users.js                   ← Multi-User System
 │   │   ├── helpers.js                 ← Date-Parsing, Kalender, Listen, Pfade
@@ -653,7 +576,6 @@ pi-agent/
 │   │   ├── lists.js                   ← Listen
 │   │   ├── weekplanner.js             ← Wochenplanung
 │   │   ├── search.js                  ← Web-Suche
-│   │   ├── godot.js                   ← Godot-Spiele
 │   │   ├── imagegen.js                ← Bildgenerierung
 │   │   ├── flashcards.js              ← Lernkarten
 │   │   ├── cooking.js                 ← Kochassistent
@@ -670,7 +592,7 @@ pi-agent/
 │   └── weather-helpers.js
 ├── pi-telegram/
 │   ├── Dockerfile
-│   └── start.js                       ← Telegram Bot + Reminder-Service
+│   └── start.js                       ← Bot-Prozessstart; Handler, Transport und Jobs getrennt
 ├── imagegen-service/
 │   └── server.py                      ← Bildgenerierung (FLUX via mflux, nativ)
 ├── ha-service/
@@ -683,3 +605,96 @@ pi-agent/
     ├── users/                         ← Persönliche Daten pro User
     └── shared/                        ← Geteilte Gruppen-Daten
 ```
+
+## Web-Chat vom Windows-PC im Heimnetz
+
+Der Ribo-Web-Chat ist auf Port 8080 im Heimnetz erreichbar. Nach Änderungen
+an Web-Chat oder Portfreigabe den Agenten neu bauen und starten:
+
+```bash
+docker compose up -d --build pi-agent
+```
+
+Auf dem Windows-PC im Browser `http://<LAN-IP-des-Macs>:8080` öffnen.
+Die IP steht am Mac unter Systemeinstellungen → Netzwerk → aktive Verbindung → Details.
+Beide Rechner müssen sich im selben Heimnetz befinden; eine Mac-Firewall muss
+eingehende Verbindungen zu Docker auf Port 8080 erlauben.
+
+Über die Büroklammer ein JPEG-, PNG- oder WebP-Bild bis 10 MB auswählen,
+optional eine Frage ergänzen und senden. Ohne Text fragt Ribo nach dem Bildinhalt.
+Die Bildanalyse nutzt dieselbe Ollama-Schnittstelle wie Telegram.
+
+Der Web-Chat verlangt jetzt eine Browser-Anmeldung. Einmalig `python3 scripts/setup-security.py` ausführen.
+Nutzer und generiertes Passwort stehen ausschließlich lokal in `.ribo-browser-access.txt` (nicht in Git).
+Die Anmeldung ist an einen festen Nutzer gebunden; andere Nutzeridentitäten werden abgewiesen.
+HTTP Basic schützt den Zugriff, verschlüsselt aber ohne HTTPS nicht die Übertragung: nur im vertrauenswürdigen Heimnetz verwenden; keine Router-Portweiterleitung einrichten.
+Für einen ausschließlich lokalen Zugang in `.env` `RIBO_BIND_ADDRESS=127.0.0.1`
+setzen und den Agenten mit obigem Befehl neu starten.
+
+## Sicherheitskonfiguration
+
+Vor dem ersten Start: `python3 scripts/setup-security.py`, danach `python3 scripts/setup-mqtt.py`. Das ergänzt vorhandene
+`.env`-Werte, ohne bestehende Zugangsdaten zu überschreiben. Native Dienste und Docker
+müssen denselben `RIBO_INTERNAL_TOKEN` verwenden. Native Dienste deshalb über
+`uv run --env-file .env --locked …` starten. Nach dieser Umstellung müssen die bereits
+laufenden nativen Dienste einmal neu gestartet werden.
+
+Browserzugriffe nutzen HTTP Basic mit `RIBO_WEB_USER` und `RIBO_WEB_PASSWORD`.
+Telegram und die lokalen Dienste nutzen stattdessen einen internen Bearer-Token.
+Downloads sind auf den authentifizierten Nutzer begrenzt, Reset betrifft nur dessen
+Session. Die interne Dienstkennung ist geheim zu halten und darf nicht in Browsercode stehen.
+
+Eigene Node-Dienste verwenden versionierte `package.json`/`package-lock.json`,
+`npm ci --ignore-scripts`, keine globalen npm-Auto-Updates und keine unkontrollierten
+Rebuild-Skripte. Die Ollama-Erweiterung verwendet denselben Runtime-Paketbestand.
+`node --test tests/*.test.mjs` führt Sicherheits-Regressionstests aus; die Integrationstests
+verwenden ausschließlich einen isolierten Container mit `/tmp` und `/workspace` als tmpfs.
+Nicht gegen den produktiven Workspace ausführen. Tests verlangen `RIBO_TEST_ISOLATED=1`.
+Im Laufzeit-Image sind npm und npx entfernt; neue Pakete werden ausschließlich beim Build installiert.
+
+Workspace-Plugins sind standardmäßig nur für den Administrator verfügbar; fehlende
+oder ungültige Metadaten sperren sie. Leere `allowed_users` bedeutet **niemand**,
+`null` bedeutet explizit alle (zusätzlich gilt die Admin-Schranke). Plugin-Code läuft
+weiterhin im Agentprozess und ist deshalb nur nach lokaler Prüfung zu installieren.
+LLM-gesteuerte Änderungen sind standardmäßig gesperrt (`RIBO_ALLOW_PLUGIN_EDIT` ist aus).
+
+MQTT und die alte Open-WebUI-Oberfläche werden standardmäßig nur auf dem Mac
+veröffentlicht. MQTT-Clients im Docker-Netz bleiben erreichbar. MQTT verwendet zusätzlich
+Passwortanmeldung und eine explizite ACL. Home Assistant und Govee verwenden die
+zusammen eingerichteten Broker-Zugangsdaten. Die Datei `mosquitto/config/passwords`
+enthält ausschließlich Passwort-Hashes und wird nicht eingecheckt. Govees
+Steueroberfläche lauscht nur auf `127.0.0.1:8056`.
+
+
+### Beibehaltener Smart-Home-Aufbau
+
+Home Assistant, govee2mqtt und der abgesicherte Mosquitto-Broker bleiben auf Wunsch
+erhalten. Die Leuchten antworten lokal auf dem Mac. Die getestete Direktanbindung
+über Docker Desktop war wegen Multicast und umgeschriebener UDP-Absenderadressen
+nicht verlässlich. Es wird keine zusätzliche VM eingerichtet.
+
+Für einen frischen Checkout erzeugt `scripts/setup-mqtt.py` die nicht eingecheckte
+Passwort-Hashdatei; vorhandene Dateien und Zugangsdaten werden beibehalten. Bei einem
+neuen Home-Assistant-Setup die MQTT-Integration mit Broker `mosquitto`, Port `1883`
+und den lokalen `GOVEE_MQTT_USER`/`GOVEE_MQTT_PASSWORD`-Werten aus `.env` einrichten.
+Eine Änderung des MQTT-Passworts muss immer mit Home Assistant und Govee abgestimmt werden.
+
+## Code-Struktur und Entwicklung
+
+Die Einstiegspunkte `pi-agent/server.js` und `pi-telegram/start.js` enthalten nur noch den
+Prozessstart. Chat-/Sitzungslogik, HTTP, Telegram-Transport, Darstellung und native Fachbausteine
+sind getrennt und separat testbar. Details: [ARCHITECTURE.md](ARCHITECTURE.md).
+
+Mit `make verify` werden die Images gebaut, Syntax geprüft und die isolierten Regressionstests
+ausgeführt. Die vorbereitete GitHub-CI verwendet denselben Ablauf. Hinweise für Änderungen:
+[DEVELOPMENT.md](DEVELOPMENT.md).
+
+Leistungsprüfung vom 9. November 2026: [Messungen und Verbesserungen](PERFORMANCE-RESULTS.md), einschließlich Schnellmodus und weiterer Prioritäten.
+
+Gedächtnis und weitere Leistungsverbesserungen: [Grundwissen, Kontext und Bildspeicher](PERFORMANCE-ROUND2.md).
+
+Telegram-Komfort und Modellplanung: [Vorschau, Audio-Schalter, Zeitmessung und Alltagstests](PERFORMANCE-ROUND3.md).
+
+Bild-Uploads: [Nutzertrennung, eigene Namen und Bildverwaltung in Web/Telegram](IMAGE-UPLOADS.md).
+
+Modelle im laufenden Betrieb wechseln: [Webauswahl, Telegram-Befehl und Verhalten](MODEL-SWITCHING.md).

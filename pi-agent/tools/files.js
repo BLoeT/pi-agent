@@ -1,6 +1,8 @@
+import { renameUpload, deleteUpload } from "../lib/uploads.js";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import fs from "fs";
+import { resolveWithin } from "../lib/security.js";
 import path from "path";
 import { getCurrentUserId, getUserWorkspacePath, checkPermission } from "../lib/users.js";
 
@@ -8,7 +10,7 @@ import { getCurrentUserId, getUserWorkspacePath, checkPermission } from "../lib/
 function listFilesRecursive(dir, base, entries = []) {
   if (!fs.existsSync(dir)) return entries;
   for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (item.name.startsWith(".")) continue;
+    if (item.name.startsWith(".") || item.isSymbolicLink()) continue;
     const abs = path.join(dir, item.name);
     const rel = path.relative(base, abs);
     if (item.isDirectory()) {
@@ -26,26 +28,20 @@ function listFilesRecursive(dir, base, entries = []) {
  * Uses path.relative to reliably detect traversal (../, absolute paths, symlink-style tricks).
  */
 function safeResolve(workspaceRoot, userPath) {
-  const root = path.resolve(workspaceRoot);
-  const abs = path.resolve(root, userPath);
-  const rel = path.relative(root, abs);
-  // rel starts with ".." → escapes the root; path.isAbsolute(rel) → different drive/root
-  if (rel === "" || rel.startsWith("..") || path.isAbsolute(rel)) {
-    return null;
-  }
-  return abs;
+  try { return resolveWithin(workspaceRoot, userPath); } catch { return null; }
 }
 
 export default defineTool({
   name: "files",
   label: "Dateien",
-  description: "Verwaltet Dateien im eigenen Workspace des Nutzers. Actions: list (auflisten), send (via Telegram/Chat schicken), delete (löschen). Der Nutzer kann NUR auf seine eigenen Dateien zugreifen.",
+  description: "Verwaltet Dateien im eigenen Workspace des Nutzers. Actions: list (auflisten), send (via Telegram/Chat schicken), rename (hochgeladenes Bild in uploads/ umbenennen), delete (löschen). Der Nutzer kann NUR auf seine eigenen Dateien zugreifen.",
   parameters: Type.Object({
-    action: Type.String({ description: "list, send oder delete" }),
+    action: Type.String({ description: "list, send, rename oder delete" }),
     file_path: Type.Optional(Type.String({ description: "Relativer Pfad der Datei im Workspace (z.B. generated-images/robot.png)" })),
-    filter: Type.Optional(Type.String({ description: "Optionaler Filter für list (z.B. 'png', 'godot')" })),
+    new_name: Type.Optional(Type.String({description:"Gewünschter Bildname bei rename, z.B. test1; nur für uploads/-Bilder"})),
+    filter: Type.Optional(Type.String({ description: "Optionaler Filter für list (z.B. 'png', 'projects')" })),
   }),
-  execute: async (_toolCallId, { action, file_path, filter }) => {
+  execute: async (_toolCallId, { action, file_path, new_name, filter }) => {
     const denied = checkPermission("files");
     if (denied) return denied;
     try {
@@ -83,9 +79,18 @@ export default defineTool({
           return { content: [{ type: "text", text: JSON.stringify({ status: "ok", message: `Hier ist deine Datei: ${filename}`, file_marker: `[FILE:${userId}:${relPath}]` }) }], details: {} };
         }
 
+        case "rename": {
+          if(!file_path?.startsWith("uploads/") || file_path.slice(8).includes("/"))throw new Error("Nur eigene Upload-Bilder können hier umbenannt werden");
+          const renamed=renameUpload(userId,file_path.slice(8),new_name);
+          return {content:[{type:"text",text:JSON.stringify({status:"ok",...renamed})}],details:{}};
+        }
         case "delete": {
           if (!file_path?.trim()) {
             return { content: [{ type: "text", text: JSON.stringify({ error: "file_path erforderlich" }) }], details: {} };
+          }
+          if(file_path.startsWith("uploads/") && !file_path.slice(8).includes("/")) {
+            deleteUpload(userId,file_path.slice(8));
+            return {content:[{type:"text",text:JSON.stringify({status:"ok",message:"Bild gelöscht"})}],details:{}};
           }
           const absPath = safeResolve(workspaceRoot, file_path.trim());
           if (!absPath) {

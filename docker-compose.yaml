@@ -1,17 +1,24 @@
 services:
   open-webui:
-    image: ghcr.io/open-webui/open-webui:v0.6.12
+    image: ghcr.io/open-webui/open-webui:v0.13.2@sha256:4f1dd4d81ef1445d4e4bfb4a7a55838dfb1de38a834a0fbe7615d92990333a71
     ports:
-      - "3000:8080"
+      - "127.0.0.1:3000:8080"
     environment:
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
     volumes:
       - openwebui_data:/app/backend/data
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
 
   ha-service:
-    build: ./ha-service
+    build:
+      context: ./ha-service
+      args:
+        RIBO_UID: ${RIBO_UID:-501}
+        RIBO_GID: ${RIBO_GID:-20}
     environment:
+      - RIBO_INTERNAL_TOKEN=${RIBO_INTERNAL_TOKEN:?Run scripts/setup-security.py first}
       - HA_URL=http://homeassistant:8123
       - HA_TOKEN=${HA_TOKEN}
     depends_on:
@@ -22,12 +29,24 @@ services:
       timeout: 5s
       retries: 3
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
   pi-agent:
-    build: ./pi-agent
+    build:
+      context: .
+      dockerfile: pi-agent/Dockerfile
+      args:
+        RIBO_UID: ${RIBO_UID:-501}
+        RIBO_GID: ${RIBO_GID:-20}
     ports:
-      - "127.0.0.1:8080:8080"
+      - "${RIBO_BIND_ADDRESS:-0.0.0.0}:8080:8080"
     environment:
+      - RIBO_WEB_USER=${RIBO_WEB_USER:-enrico}
+      - RIBO_WEB_PASSWORD=${RIBO_WEB_PASSWORD:?Run scripts/setup-security.py first}
+      - RIBO_INTERNAL_TOKEN=${RIBO_INTERNAL_TOKEN:?Run scripts/setup-security.py first}
       - TZ=${TZ:-Europe/Berlin}
       - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
@@ -38,8 +57,8 @@ services:
       # provider-passenden Default (qwen3.8:27b bzw. claude-sonnet-5).
       # Bilder laufen über dasselbe multimodale PI_MODEL, kein separates VISION_MODEL nötig.
       - PI_MODEL=${PI_MODEL:-}
-      - THINKING_LEVEL=${THINKING_LEVEL:-medium}
-      - OLLAMA_NUM_CTX=16384
+      - THINKING_LEVEL=${THINKING_LEVEL:-low}
+      - RIBO_MAX_OUTPUT_TOKENS=${RIBO_MAX_OUTPUT_TOKENS:-8192}
       - HA_SERVICE_URL=http://ha-service:8082
       # hey-ribo (Musik + Timer + TTS). RIBO_SERVICE_URL = sprechender Name.
       - RIBO_SERVICE_URL=http://host.docker.internal:8085
@@ -52,22 +71,32 @@ services:
       # absolute Host-Pfade für img2img). Muss auf den echten Pfad zeigen.
       - HOST_WORKSPACE_PATH=${HOST_WORKSPACE_PATH:-/Users/enricostarke/Desktop/pi-agent/workspace}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - OLLAMA_CONTEXT_LENGTH=${OLLAMA_CONTEXT_LENGTH}
+      - OLLAMA_CONTEXT_LENGTH=${OLLAMA_CONTEXT_LENGTH:-65536}
     volumes:
       - ./workspace:/workspace
     depends_on:
       ha-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
   pi-telegram:
-    build: ./pi-telegram
+    build:
+      context: .
+      dockerfile: pi-telegram/Dockerfile
+      args:
+        RIBO_UID: ${RIBO_UID:-501}
+        RIBO_GID: ${RIBO_GID:-20}
     environment:
+      - RIBO_INTERNAL_TOKEN=${RIBO_INTERNAL_TOKEN:?Run scripts/setup-security.py first}
       - TZ=${TZ:-Europe/Berlin}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - AGENT_URL=http://pi-agent:8080
@@ -77,9 +106,13 @@ services:
     depends_on:
       - pi-agent
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
   homeassistant:
-    image: ghcr.io/home-assistant/home-assistant:stable
+    image: ghcr.io/home-assistant/home-assistant:2026.11.0@sha256:c6c1ca9931036bf3a2c4cc088d8db25dfea3b33935a5ecc83c40349462e2f69e
     ports:
       - "8123:8123"
     volumes:
@@ -87,13 +120,18 @@ services:
     environment:
       - TZ=Europe/Berlin
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
 
   mosquitto:
-    image: eclipse-mosquitto:2
+    image: eclipse-mosquitto:2@sha256:75d6662dee52c947dc9dd9c29f1d8d7ffef78ddaf38001caa09755681e8bbc98
+    user: "${RIBO_UID:-501}:${RIBO_GID:-20}"
     container_name: mosquitto
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     ports:
-      - "1883:1883"
+      - "127.0.0.1:1883:1883"
     volumes:
       - ./mosquitto/config:/mosquitto/config
       - ./mosquitto/data:/mosquitto/data

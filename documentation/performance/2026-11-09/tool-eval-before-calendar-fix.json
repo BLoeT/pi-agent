@@ -1,0 +1,579 @@
+{
+  "results": [
+    {
+      "mode": "off",
+      "name": "list_create_and_correct",
+      "ok": true,
+      "ms": 25356,
+      "requests": [
+        {
+          "mode": "off",
+          "calls": [
+            {
+              "name": "lists",
+              "action": "create_list"
+            },
+            {
+              "name": "lists",
+              "action": "add_item"
+            }
+          ]
+        },
+        {
+          "mode": "off",
+          "calls": [
+            {
+              "name": "lists",
+              "action": "update_item"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "off",
+      "name": "calendar_edit_preserves_other_event",
+      "ok": false,
+      "reason": "Expected values to be strictly equal:\n\n15 !== 16\n",
+      "ms": 24687,
+      "requests": [
+        {
+          "mode": "off",
+          "calls": [
+            {
+              "name": "calendar",
+              "action": "day"
+            },
+            {
+              "name": "calendar",
+              "action": "day"
+            },
+            {
+              "name": "calendar",
+              "action": "day"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "off",
+      "name": "memory_remember_correct_forget",
+      "ok": true,
+      "ms": 30576,
+      "requests": [
+        {
+          "mode": "off",
+          "calls": [
+            {
+              "name": "memory",
+              "action": "recall"
+            },
+            {
+              "name": "memory",
+              "action": "remember"
+            }
+          ]
+        },
+        {
+          "mode": "off",
+          "calls": [
+            {
+              "name": "memory",
+              "action": "update"
+            }
+          ]
+        },
+        {
+          "mode": "off",
+          "calls": [
+            {
+              "name": "memory",
+              "action": "forget"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "off",
+      "name": "flashcard_waits_for_answer_then_records_it",
+      "ok": false,
+      "reason": "Expected values to be strictly equal:\n\n0 !== 1\n",
+      "ms": 7667,
+      "requests": [
+        {
+          "mode": "off",
+          "calls": [
+            {
+              "name": "flashcards",
+              "action": "study"
+            }
+          ]
+        },
+        {
+          "mode": "off",
+          "calls": [
+            {
+              "name": "flashcards",
+              "action": "answer"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "off",
+      "name": "file_marker_retained",
+      "ok": true,
+      "ms": 2052,
+      "requests": [
+        {
+          "mode": "off",
+          "calls": [
+            {
+              "name": "files",
+              "action": "send"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "off",
+      "name": "reminder_has_real_due_time",
+      "ok": true,
+      "ms": 3531,
+      "requests": [
+        {
+          "mode": "off",
+          "calls": [
+            {
+              "name": "reminders",
+              "action": "create"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "off",
+      "name": "scheduled_outbox_single_full_delivery",
+      "ok": true,
+      "ms": 1751,
+      "requests": [
+        {
+          "mode": "off",
+          "calls": [
+            {
+              "name": "send_message"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "low",
+      "name": "list_create_and_correct",
+      "ok": true,
+      "ms": 34372,
+      "requests": [
+        {
+          "mode": "low",
+          "calls": [
+            {
+              "name": "lists",
+              "action": "create_list"
+            },
+            {
+              "name": "lists",
+              "action": "add_item"
+            }
+          ]
+        },
+        {
+          "mode": "low",
+          "calls": [
+            {
+              "name": "lists",
+              "action": "update_item"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "low",
+      "name": "calendar_edit_preserves_other_event",
+      "ok": false,
+      "reason": "Expected values to be strictly equal:\n\n15 !== 16\n",
+      "ms": 45014,
+      "requests": [
+        {
+          "mode": "low",
+          "calls": [
+            {
+              "name": "calendar",
+              "action": "day"
+            },
+            {
+              "name": "calendar",
+              "action": "day"
+            },
+            {
+              "name": "calendar",
+              "action": "today"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "low",
+      "name": "memory_remember_correct_forget",
+      "ok": true,
+      "ms": 40271,
+      "requests": [
+        {
+          "mode": "low",
+          "calls": [
+            {
+              "name": "memory",
+              "action": "remember"
+            }
+          ]
+        },
+        {
+          "mode": "low",
+          "calls": [
+            {
+              "name": "memory",
+              "action": "update"
+            }
+          ]
+        },
+        {
+          "mode": "low",
+          "calls": [
+            {
+              "name": "memory",
+              "action": "forget"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "low",
+      "name": "flashcard_waits_for_answer_then_records_it",
+      "ok": true,
+      "ms": 10098,
+      "requests": [
+        {
+          "mode": "low",
+          "calls": [
+            {
+              "name": "flashcards",
+              "action": "study"
+            }
+          ]
+        },
+        {
+          "mode": "low",
+          "calls": [
+            {
+              "name": "flashcards",
+              "action": "answer"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "low",
+      "name": "file_marker_retained",
+      "ok": true,
+      "ms": 4935,
+      "requests": [
+        {
+          "mode": "low",
+          "calls": [
+            {
+              "name": "files",
+              "action": "send"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "low",
+      "name": "reminder_has_real_due_time",
+      "ok": true,
+      "ms": 8633,
+      "requests": [
+        {
+          "mode": "low",
+          "calls": [
+            {
+              "name": "reminders",
+              "action": "create"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "low",
+      "name": "scheduled_outbox_single_full_delivery",
+      "ok": true,
+      "ms": 5902,
+      "requests": [
+        {
+          "mode": "low",
+          "calls": [
+            {
+              "name": "send_message"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "wire": [
+    {
+      "num_predict": 1,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 1,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 1,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 1,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 1,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 1,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 1,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": false
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    },
+    {
+      "num_predict": 8192,
+      "think": "low"
+    }
+  ],
+  "passed": 11,
+  "total": 14
+}

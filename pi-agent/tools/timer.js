@@ -1,3 +1,5 @@
+import { fetchResponse } from "../lib/http.js";
+import { serviceHeaders } from "../lib/security.js";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { checkPermission } from "../lib/users.js";
@@ -21,23 +23,23 @@ export default defineTool({
     try {
       switch (action) {
         case "create": {
-          const resp = await fetch(`${RIBO_SERVICE_URL}/timer/create`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
+          const resp = await fetchResponse(`${RIBO_SERVICE_URL}/timer/create`, {
+            method: "POST", signal: AbortSignal.timeout(30000), headers: serviceHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({ name, duration_seconds }),
           });
           if (!resp.ok) throw new Error(`Timer service responded ${resp.status}`);
           return { content: [{ type: "text", text: JSON.stringify(await resp.json()) }], details: {} };
         }
         case "cancel": {
-          const resp = await fetch(`${RIBO_SERVICE_URL}/timer/cancel`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
+          const resp = await fetchResponse(`${RIBO_SERVICE_URL}/timer/cancel`, {
+            method: "POST", signal: AbortSignal.timeout(30000), headers: serviceHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({ name }),
           });
           if (!resp.ok) throw new Error(`Timer service responded ${resp.status}`);
           return { content: [{ type: "text", text: JSON.stringify(await resp.json()) }], details: {} };
         }
         case "list": {
-          const resp = await fetch(`${RIBO_SERVICE_URL}/timer/list`);
+          const resp = await fetchResponse(`${RIBO_SERVICE_URL}/timer/list`, { headers: serviceHeaders(), signal: AbortSignal.timeout(30000) });
           if (!resp.ok) throw new Error(`Timer service responded ${resp.status}`);
           return { content: [{ type: "text", text: JSON.stringify(await resp.json()) }], details: {} };
         }

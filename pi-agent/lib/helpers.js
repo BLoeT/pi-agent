@@ -1,8 +1,10 @@
+import { readJson, atomicWrite, withFileLock } from "./storage.js";
 /**
  * Shared Helpers
  * Date/time parsing, calendar helpers, ICS generation utilities.
  */
 import fs from "fs";
+import { safeName, resolveWithin } from "./security.js";
 import path from "path";
 import { getCurrentUserId, getUserWorkspacePath, getSharedGroupPaths } from "./users.js";
 
@@ -12,6 +14,13 @@ export function parseGermanDate(dateStr) {
   if (!dateStr || typeof dateStr !== "string") return null;
   const input = dateStr.trim().toLowerCase();
   if (!input) return null;
+
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input);
+  if (iso) {
+    const year=Number(iso[1]), month=Number(iso[2])-1, day=Number(iso[3]);
+    const value=new Date(year,month,day);
+    return value.getFullYear()===year && value.getMonth()===month && value.getDate()===day ? value : null;
+  }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -100,7 +109,7 @@ export function parseGermanTime(timeStr) {
 
 export function getCalendarFilePath() {
   const userId = getCurrentUserId();
-  return path.join(getUserWorkspacePath(userId), "calendar.ics");
+  return resolveWithin(getUserWorkspacePath(userId), "calendar.ics");
 }
 
 export function getAllCalendarFiles() {
@@ -121,6 +130,7 @@ export function generateEventUID() {
 }
 
 export function generateVEvent({ title, startDate, endDate, allDay, reminders }) {
+  title = String(title).replace(/\\/g, "\\\\").replace(/\r\n|\r|\n/g, "\\n").replace(/;/g, "\\;").replace(/,/g, "\\,");
   const uid = generateEventUID();
   const now = new Date();
   const dtstamp =
@@ -135,7 +145,8 @@ export function generateVEvent({ title, startDate, endDate, allDay, reminders })
 
   if (allDay) {
     const startStr = startDate.getFullYear().toString() + String(startDate.getMonth() + 1).padStart(2, "0") + String(startDate.getDate()).padStart(2, "0");
-    const endDate_ = endDate || new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+    const endDate_ = endDate ? new Date(endDate) : new Date(startDate);
+    if(!endDate) endDate_.setDate(endDate_.getDate()+1);
     const endStr = endDate_.getFullYear().toString() + String(endDate_.getMonth() + 1).padStart(2, "0") + String(endDate_.getDate()).padStart(2, "0");
     dtstart = `DTSTART;VALUE=DATE:${startStr}`;
     dtend = `DTEND;VALUE=DATE:${endStr}`;
@@ -172,6 +183,7 @@ export function generateVEvent({ title, startDate, endDate, allDay, reminders })
 }
 
 export function appendEventToIcs(filePath, veventStr) {
+  return withFileLock(filePath, () => {
   const resolvedPath = path.resolve(filePath);
   if (fs.existsSync(resolvedPath)) {
     const content = fs.readFileSync(resolvedPath, "utf-8");
@@ -179,61 +191,42 @@ export function appendEventToIcs(filePath, veventStr) {
     const lastIdx = content.lastIndexOf(endTag);
     if (lastIdx === -1) {
       const newContent = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Ribo//Calendar//DE\r\n" + content + veventStr + "\r\n" + "END:VCALENDAR\r\n";
-      fs.writeFileSync(resolvedPath, newContent, "utf-8");
+      atomicWrite(resolvedPath, newContent);
     } else {
       const before = content.slice(0, lastIdx);
       const after = content.slice(lastIdx);
-      fs.writeFileSync(resolvedPath, before + veventStr + "\r\n" + after, "utf-8");
+      atomicWrite(resolvedPath, before + veventStr + "\r\n" + after);
     }
   } else {
     fs.mkdirSync(path.dirname(resolvedPath), { recursive: true });
-    fs.writeFileSync(resolvedPath, "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Ribo//Calendar//DE\r\n" + veventStr + "\r\n" + "END:VCALENDAR\r\n", "utf-8");
+    atomicWrite(resolvedPath, "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Ribo//Calendar//DE\r\n" + veventStr + "\r\n" + "END:VCALENDAR\r\n");
   }
+  });
 }
 
 // --- Notes Helpers ---
 
 export function getNotesFilePath() {
   const userId = getCurrentUserId();
-  return path.join(getUserWorkspacePath(userId), "notes.json");
+  return resolveWithin(getUserWorkspacePath(userId), "notes.json");
 }
 
 export function readNotes() {
-  const notesPath = getNotesFilePath();
-  try {
-    if (!fs.existsSync(notesPath)) {
-      fs.mkdirSync(path.dirname(notesPath), { recursive: true });
-      fs.writeFileSync(notesPath, "[]", "utf-8");
-      return [];
-    }
-    const content = fs.readFileSync(notesPath, "utf-8");
-    const parsed = JSON.parse(content);
-    if (!Array.isArray(parsed)) throw new Error("Notes file is not an array");
-    return parsed;
-  } catch (e) {
-    if (e instanceof SyntaxError || (e.message && e.message.includes("not an array"))) {
-      fs.writeFileSync(notesPath, "[]", "utf-8");
-      return [];
-    }
-    throw e;
-  }
+  const notes = readJson(getNotesFilePath(), []);
+  if (!Array.isArray(notes)) throw new Error("Ungültige Notizdatei; Original bleibt erhalten");
+  return notes;
 }
-
-export function writeNotes(notes) {
-  const notesPath = getNotesFilePath();
-  fs.mkdirSync(path.dirname(notesPath), { recursive: true });
-  fs.writeFileSync(notesPath, JSON.stringify(notes, null, 2), "utf-8");
-}
+export function writeNotes(notes) { atomicWrite(getNotesFilePath(), JSON.stringify(notes,null,2)); }
 
 // --- Lists Helpers ---
 
 export function getListsDir() {
   const userId = getCurrentUserId();
-  return path.join(getUserWorkspacePath(userId), "lists");
+  return resolveWithin(getUserWorkspacePath(userId), "lists");
 }
 
 export function deriveFilename(listName) {
-  return listName.trim().toLowerCase().replace(/\s+/g, '-');
+  return safeName(listName).toLowerCase().replace(/\s+/g, '-');
 }
 
 export function getSharedListPath(listName) {
@@ -244,7 +237,7 @@ export function getSharedListPath(listName) {
     for (const sharedListName of group.sharedLists) {
       if (sharedListName.toLowerCase() === normalizedName) {
         const filename = deriveFilename(sharedListName);
-        return path.join(group.listsDir, `${filename}.json`);
+        return resolveWithin(group.listsDir, `${filename}.json`);
       }
     }
   }
@@ -255,7 +248,7 @@ export function getListPath(listName) {
   const sharedPath = getSharedListPath(listName);
   if (sharedPath) return sharedPath;
   const filename = deriveFilename(listName);
-  return path.join(getListsDir(), `${filename}.json`);
+  return resolveWithin(getListsDir(), `${filename}.json`);
 }
 
 export function ensureListsDir() {
@@ -276,7 +269,7 @@ export function writeList(listName, items) {
   const filePath = getListPath(listName);
   // Ensure shared list directories exist
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, JSON.stringify(items, null, 2), "utf-8");
+  atomicWrite(filePath, JSON.stringify(items, null, 2));
 }
 
 export function listExists(listName) {
@@ -296,34 +289,24 @@ export function getAllListNames() {
   const userId = getCurrentUserId();
   const groups = getSharedGroupPaths(userId);
   for (const group of groups) {
-    if (fs.existsSync(group.listsDir)) {
-      const sharedFiles = fs.readdirSync(group.listsDir).filter(f => f.endsWith('.json'));
-      for (const sf of sharedFiles) {
-        const name = sf.replace(/\.json$/, '');
-        if (!names.includes(name)) names.push(name);
-      }
+    for(const sharedName of group.sharedLists) {
+      const file=resolveWithin(group.listsDir,`${deriveFilename(sharedName)}.json`);
+      if(fs.existsSync(file) && !names.includes(sharedName)) names.push(sharedName);
     }
   }
   return names;
-}
-
-// --- Godot Helpers ---
-
-export function getGodotProjectDir() {
-  const userId = getCurrentUserId();
-  return path.join(getUserWorkspacePath(userId), "godot-project");
 }
 
 // --- ImageGen Helpers ---
 
 export function getImagegenOutputDir() {
   const userId = getCurrentUserId();
-  return path.join(getUserWorkspacePath(userId), "generated-images");
+  return resolveWithin(getUserWorkspacePath(userId), "generated-images");
 }
 
 // --- Flashcards Helpers ---
 
 export function getFlashcardsDir() {
   const userId = getCurrentUserId();
-  return path.join(getUserWorkspacePath(userId), "flashcards");
+  return resolveWithin(getUserWorkspacePath(userId), "flashcards");
 }

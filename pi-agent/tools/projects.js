@@ -1,27 +1,25 @@
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import fs from "fs";
+import { randomUUID } from "node:crypto";
+import { resolveWithin, safeName } from "../lib/security.js";
 import path from "path";
 import { getCurrentUserId, getUserWorkspacePath, checkPermission } from "../lib/users.js";
 
 function getProjectsDir() {
   const userId = getCurrentUserId();
-  return path.join(getUserWorkspacePath(userId), "projects");
+  return resolveWithin(getUserWorkspacePath(userId), "projects");
 }
 
 // Resolve a path within the projects dir, with robust traversal check
 function resolveProjectPath(relPath) {
-  const root = path.resolve(getProjectsDir());
-  const abs = path.resolve(root, relPath);
-  const rel = path.relative(root, abs);
-  if (rel.startsWith("..") || path.isAbsolute(rel)) return null; // path traversal
-  return abs;
+  try { return resolveWithin(getProjectsDir(), relPath); } catch { return null; }
 }
 
 function listRecursive(dir, base, entries = []) {
   if (!fs.existsSync(dir)) return entries;
   for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (item.name.startsWith(".")) continue;
+    if (item.name.startsWith(".") || item.isSymbolicLink()) continue;
     const abs = path.join(dir, item.name);
     const rel = path.relative(base, abs);
     if (item.isDirectory()) {
@@ -37,7 +35,7 @@ function listRecursive(dir, base, entries = []) {
 export default defineTool({
   name: "projects",
   label: "Projekte",
-  description: "Erstellt und verwaltet Code-Projekte (JavaScript, Python, Java, etc.) im Workspace des Nutzers. Für Spiele nutze stattdessen das 'godot'-Tool. Actions: write_file (Datei schreiben), read_file (lesen), list (Projektdateien auflisten), delete_file (löschen), zip (Projekt als ZIP zum Download/Versand packen).",
+  description: "Erstellt und verwaltet Code-Projekte (JavaScript, Python, Java, etc.) im Workspace des Nutzers. Actions: write_file (Datei schreiben), read_file (lesen), list (Projektdateien auflisten), delete_file (löschen), zip (Projekt als ZIP zum Download/Versand packen).",
   parameters: Type.Object({
     action: Type.String({ description: "write_file, read_file, list, delete_file, zip" }),
     project: Type.Optional(Type.String({ description: "Projektname (z.B. counter-app, csv-merger)" })),
@@ -46,7 +44,7 @@ export default defineTool({
     offset: Type.Optional(Type.Number({ description: "Startzeile für read_file (1-basiert, default: 1)" })),
     limit: Type.Optional(Type.Number({ description: "Anzahl Zeilen für read_file (default: 200)" })),
   }),
-  execute: async (_toolCallId, { action, project, file_path, content, offset, limit }) => {
+  execute: async (_toolCallId, { action, project, file_path, content, offset, limit }, signal) => {
     const denied = checkPermission("projects");
     if (denied) return denied;
     try {
@@ -67,6 +65,9 @@ export default defineTool({
           if (!project?.trim() || !file_path?.trim()) return { content: [{ type: "text", text: JSON.stringify({ error: "project und file_path erforderlich" }) }], details: {} };
           const abs = resolveProjectPath(path.join(project.trim(), file_path.trim()));
           if (!abs || !fs.existsSync(abs)) return { content: [{ type: "text", text: JSON.stringify({ error: `Nicht gefunden: ${file_path}` }) }], details: {} };
+          if(offset!==undefined && (!Number.isInteger(offset) || offset<1)) throw new Error("offset muss eine positive ganze Zahl sein");
+          if(limit!==undefined && (!Number.isInteger(limit) || limit<1 || limit>500)) throw new Error("limit muss zwischen 1 und 500 liegen");
+          if(fs.statSync(abs).size>2*1024*1024) throw new Error("Datei zu groß für Textanzeige (max. 2 MB)");
           const fileContent = fs.readFileSync(abs, "utf-8");
           const allLines = fileContent.split("\n");
           const totalLines = allLines.length;
@@ -114,20 +115,29 @@ export default defineTool({
           const projectAbs = resolveProjectPath(project.trim());
           if (!projectAbs || !fs.existsSync(projectAbs)) return { content: [{ type: "text", text: JSON.stringify({ error: `Projekt "${project}" existiert nicht` }) }], details: {} };
 
-          // Create zip using archiver
-          const archiver = (await import("archiver")).default;
-          const zipName = `${project.trim()}.zip`;
-          const zipPath = path.join(getProjectsDir(), zipName);
-
-          await new Promise((resolve, reject) => {
-            const output = fs.createWriteStream(zipPath);
-            const archive = archiver("zip", { zlib: { level: 9 } });
-            output.on("close", resolve);
-            archive.on("error", reject);
-            archive.pipe(output);
-            archive.directory(projectAbs, project.trim());
-            archive.finalize();
-          });
+          const { ZipArchive } = await import("archiver");
+          const zipName = `${safeName(project)}.zip`;
+          const zipPath = resolveWithin(getProjectsDir(), zipName);
+          const temporary = resolveWithin(getProjectsDir(), `export-${randomUUID()}.tmp`);
+          try {
+            await new Promise((resolve,reject)=>{
+              const archive = new ZipArchive({zlib:{level:6}});
+              const output = fs.createWriteStream(temporary,{flags:"wx",mode:0o600});
+              const abort=()=>{archive.abort();output.destroy();reject(signal?.reason || new Error("Export abgebrochen"));};
+              output.on("close",()=>{signal?.removeEventListener("abort",abort);resolve();});
+              output.on("error",reject);archive.on("error",error=>{output.destroy();reject(error);});
+              archive.on("warning",error=>{output.destroy();reject(error);});
+              if(signal?.aborted) {abort();return;}
+              signal?.addEventListener("abort",abort,{once:true});
+              archive.pipe(output);
+              for(const file of listRecursive(projectAbs,projectAbs).filter(f=>f.type==="file")) {
+                archive.file(resolveWithin(projectAbs,file.path),{name:`${project}/${file.path}`});
+              }
+              archive.finalize().catch(reject);
+            });
+            resolveWithin(getProjectsDir(),zipName);
+            fs.renameSync(temporary,zipPath);
+          } finally {try{fs.unlinkSync(temporary);}catch(error){if(error.code!=="ENOENT")throw error;}}
 
           const relPath = `projects/${zipName}`;
           return { content: [{ type: "text", text: JSON.stringify({ status: "ok", message: `Projekt "${project}" als ZIP gepackt.`, file_marker: `[FILE:${userId}:${relPath}]` }) }], details: {} };

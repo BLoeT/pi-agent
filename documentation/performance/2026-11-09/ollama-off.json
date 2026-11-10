@@ -1,0 +1,132 @@
+{
+  "model": "qwen3.8-27b-64k:latest",
+  "version": {
+    "version": "0.40.13"
+  },
+  "details": {
+    "parent_model": "",
+    "format": "safetensors",
+    "family": "qwen3_5",
+    "families": null,
+    "parameter_size": "27.8B",
+    "quantization_level": "nvfp4",
+    "runner": "mlx"
+  },
+  "runs": [
+    {
+      "context": 65536,
+      "think": false,
+      "wall_ms": 286,
+      "first_text_ms": 286,
+      "first_thinking_ms": null,
+      "quality_ok": true,
+      "done_reason": "stop",
+      "total_duration": 285430958,
+      "load_duration": 641042,
+      "prompt_eval_count": 30,
+      "prompt_eval_duration": 202239542,
+      "eval_count": 2,
+      "eval_duration": 81589666,
+      "case": "arithmetic",
+      "warmup": true
+    },
+    {
+      "context": 65536,
+      "think": false,
+      "wall_ms": 155,
+      "first_text_ms": 155,
+      "first_thinking_ms": null,
+      "quality_ok": true,
+      "done_reason": "stop",
+      "total_duration": 154170625,
+      "load_duration": 4858542,
+      "prompt_eval_count": 30,
+      "prompt_eval_duration": 70418458,
+      "eval_count": 2,
+      "eval_duration": 77674125,
+      "case": "arithmetic",
+      "warmup": false,
+      "repetition": 1
+    },
+    {
+      "context": 65536,
+      "think": false,
+      "wall_ms": 168,
+      "first_text_ms": 168,
+      "first_thinking_ms": null,
+      "quality_ok": true,
+      "done_reason": "stop",
+      "total_duration": 167430000,
+      "load_duration": 7648541,
+      "prompt_eval_count": 30,
+      "prompt_eval_duration": 67929666,
+      "eval_count": 2,
+      "eval_duration": 90939625,
+      "case": "arithmetic",
+      "warmup": false,
+      "repetition": 2
+    },
+    {
+      "context": 65536,
+      "think": false,
+      "wall_ms": 170,
+      "first_text_ms": 170,
+      "first_thinking_ms": null,
+      "quality_ok": true,
+      "done_reason": "stop",
+      "total_duration": 168982709,
+      "load_duration": 8794292,
+      "prompt_eval_count": 30,
+      "prompt_eval_duration": 68248750,
+      "eval_count": 2,
+      "eval_duration": 90215750,
+      "case": "arithmetic",
+      "warmup": false,
+      "repetition": 3
+    },
+    {
+      "context": 65536,
+      "think": false,
+      "wall_ms": 168,
+      "first_text_ms": 168,
+      "first_thinking_ms": null,
+      "quality_ok": true,
+      "done_reason": "stop",
+      "total_duration": 166737750,
+      "load_duration": 8115167,
+      "prompt_eval_count": 30,
+      "prompt_eval_duration": 66793250,
+      "eval_count": 2,
+      "eval_duration": 91020416,
+      "case": "arithmetic",
+      "warmup": false,
+      "repetition": 4
+    },
+    {
+      "context": 65536,
+      "think": false,
+      "wall_ms": 169,
+      "first_text_ms": 169,
+      "first_thinking_ms": null,
+      "quality_ok": true,
+      "done_reason": "stop",
+      "total_duration": 168119375,
+      "load_duration": 8420208,
+      "prompt_eval_count": 30,
+      "prompt_eval_duration": 67490250,
+      "eval_count": 2,
+      "eval_duration": 91196333,
+      "case": "arithmetic",
+      "warmup": false,
+      "repetition": 5
+    }
+  ],
+  "summaries": [
+    {
+      "context": 65536,
+      "quality_ok": true,
+      "median_wall_ms": 168,
+      "median_first_text_ms": 168
+    }
+  ]
+}

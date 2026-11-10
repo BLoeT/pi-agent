@@ -26,3 +26,14 @@ Thumbs.db
 
 # Logs
 *.log
+
+.ribo-browser-access.txt
+.env-security-tmp
+.security-backups/
+mosquitto/config/passwords*
+
+mosquitto/data/
+
+mosquitto/log/
+
+.logs/

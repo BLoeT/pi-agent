@@ -1,3 +1,5 @@
+import { fetchResponse } from "../lib/http.js";
+import { serviceHeaders } from "../lib/security.js";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { checkPermission } from "../lib/users.js";
@@ -13,7 +15,7 @@ export default defineTool({
     domain: Type.Optional(Type.String({ description: "Service-Domain, z.B. light, switch, climate" })),
     service: Type.Optional(Type.String({ description: "Service-Name, z.B. turn_on, turn_off, toggle" })),
     entity_id: Type.Optional(Type.String({ description: "Entity-ID, z.B. light.wohnzimmer" })),
-    data: Type.Optional(Type.Object({}, { description: "Zusätzliche Service-Daten" })),
+    data: Type.Optional(Type.Object({}, { additionalProperties:true, description: "Zusätzliche Service-Daten" })),
   }),
   execute: async (_toolCallId, { action, domain, service, entity_id, data }) => {
     const denied = checkPermission("smart_home");
@@ -21,9 +23,9 @@ export default defineTool({
     try {
       switch (action) {
         case "call_service": {
-          const resp = await fetch(`${HA_SERVICE_URL}/call_service`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+          const resp = await fetchResponse(`${HA_SERVICE_URL}/call_service`, {
+            method: "POST", signal: AbortSignal.timeout(30000),
+            headers: serviceHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({ domain, service, entity_id, data }),
           });
           if (!resp.ok) throw new Error(`HA service responded ${resp.status}`);
@@ -32,13 +34,13 @@ export default defineTool({
         }
         case "get_states": {
           const url = entity_id ? `${HA_SERVICE_URL}/states/${entity_id}` : `${HA_SERVICE_URL}/states`;
-          const r = await fetch(url);
+          const r = await fetchResponse(url, { headers: serviceHeaders(), signal: AbortSignal.timeout(30000) });
           if (!r.ok) throw new Error(`HA service responded ${r.status}`);
           const result = await r.json();
           return { content: [{ type: "text", text: JSON.stringify(result) }], details: {} };
         }
         case "get_services": {
-          const sv = await fetch(`${HA_SERVICE_URL}/services`);
+          const sv = await fetchResponse(`${HA_SERVICE_URL}/services`, { headers: serviceHeaders(), signal: AbortSignal.timeout(30000) });
           if (!sv.ok) throw new Error(`HA service responded ${sv.status}`);
           const result = await sv.json();
           return { content: [{ type: "text", text: JSON.stringify(result) }], details: {} };

@@ -1,0 +1,760 @@
+{
+  "results": {
+    "chat_before_ms": 2986,
+    "chat_during_ms": 263,
+    "image_ms": 9469,
+    "image_bytes": 213545
+  },
+  "samples": [
+    {
+      "seconds": 0.0,
+      "phase": "baseline",
+      "swap": "total = 9216.00M  used = 8267.94M  free = 948.06M  (encrypted)",
+      "Pages occupied by compressor": 153757,
+      "Pageouts": 2980,
+      "Swapins": 5773449,
+      "Swapouts": 7085581,
+      "image_worker_rss_kib": 0
+    },
+    {
+      "seconds": 1.04,
+      "phase": "baseline",
+      "swap": "total = 9216.00M  used = 8267.94M  free = 948.06M  (encrypted)",
+      "Pages occupied by compressor": 153757,
+      "Pageouts": 2980,
+      "Swapins": 5773449,
+      "Swapouts": 7085581,
+      "image_worker_rss_kib": 0
+    },
+    {
+      "seconds": 2.1,
+      "phase": "chat_load",
+      "swap": "total = 9216.00M  used = 8267.94M  free = 948.06M  (encrypted)",
+      "Pages occupied by compressor": 153757,
+      "Pageouts": 2980,
+      "Swapins": 5773449,
+      "Swapouts": 7085581,
+      "image_worker_rss_kib": 0
+    },
+    {
+      "seconds": 3.14,
+      "phase": "chat_load",
+      "swap": "total = 9216.00M  used = 8267.94M  free = 948.06M  (encrypted)",
+      "Pages occupied by compressor": 153757,
+      "Pageouts": 2980,
+      "Swapins": 5773449,
+      "Swapouts": 7085581,
+      "image_worker_rss_kib": 0
+    },
+    {
+      "seconds": 4.18,
+      "phase": "chat_load",
+      "swap": "total = 9216.00M  used = 8267.94M  free = 948.06M  (encrypted)",
+      "Pages occupied by compressor": 317277,
+      "Pageouts": 3149,
+      "Swapins": 5773449,
+      "Swapouts": 7085581,
+      "image_worker_rss_kib": 0
+    },
+    {
+      "seconds": 5.28,
+      "phase": "image_and_chat",
+      "swap": "total = 9216.00M  used = 8267.94M  free = 948.06M  (encrypted)",
+      "Pages occupied by compressor": 279459,
+      "Pageouts": 3149,
+      "Swapins": 5773453,
+      "Swapouts": 7085581,
+      "image_worker_rss_kib": 84416
+    },
+    {
+      "seconds": 6.32,
+      "phase": "image_and_chat",
+      "swap": "total = 9216.00M  used = 8267.94M  free = 948.06M  (encrypted)",
+      "Pages occupied by compressor": 278837,
+      "Pageouts": 3149,
+      "Swapins": 5773457,
+      "Swapouts": 7085581,
+      "image_worker_rss_kib": 239152
+    },
+    {
+      "seconds": 7.36,
+      "phase": "image_and_chat",
+      "swap": "total = 9216.00M  used = 8267.94M  free = 948.06M  (encrypted)",
+      "Pages occupied by compressor": 321271,
+      "Pageouts": 3186,
+      "Swapins": 5773457,
+      "Swapouts": 7085581,
+      "image_worker_rss_kib": 4211376
+    },
+    {
+      "seconds": 8.57,
+      "phase": "image_and_chat",
+      "swap": "total = 9216.00M  used = 8267.94M  free = 948.06M  (encrypted)",
+      "Pages occupied by compressor": 854846,
+      "Pageouts": 3204,
+      "Swapins": 5773461,
+      "Swapouts": 7085581,
+      "image_worker_rss_kib": 5255632
+    },
+    {
+      "seconds": 9.9,
+      "phase": "image_and_chat",
+      "swap": "total = 9216.00M  used = 8375.19M  free = 840.81M  (encrypted)",
+      "Pages occupied by compressor": 689377,
+      "Pageouts": 3204,
+      "Swapins": 5773501,
+      "Swapouts": 7092445,
+      "image_worker_rss_kib": 4089216
+    },
+    {
+      "seconds": 10.95,
+      "phase": "image_and_chat",
+      "swap": "total = 9216.00M  used = 8375.19M  free = 840.81M  (encrypted)",
+      "Pages occupied by compressor": 690441,
+      "Pageouts": 3214,
+      "Swapins": 5773525,
+      "Swapouts": 7092445,
+      "image_worker_rss_kib": 4087984
+    },
+    {
+      "seconds": 12.0,
+      "phase": "image_and_chat",
+      "swap": "total = 9216.00M  used = 8375.19M  free = 840.81M  (encrypted)",
+      "Pages occupied by compressor": 685639,
+      "Pageouts": 3214,
+      "Swapins": 5773536,
+      "Swapouts": 7092445,
+      "image_worker_rss_kib": 4087968
+    },
+    {
+      "seconds": 13.09,
+      "phase": "image_and_chat",
+      "swap": "total = 9216.00M  used = 8403.56M  free = 812.44M  (encrypted)",
+      "Pages occupied by compressor": 904911,
+      "Pageouts": 3214,
+      "Swapins": 5773540,
+      "Swapouts": 7095461,
+      "image_worker_rss_kib": 3101824
+    },
+    {
+      "seconds": 14.16,
+      "phase": "image_and_chat",
+      "swap": "total = 12288.00M  used = 11172.06M  free = 1115.94M  (encrypted)",
+      "Pages occupied by compressor": 929092,
+      "Pageouts": 3217,
+      "Swapins": 5773568,
+      "Swapouts": 7272157,
+      "image_worker_rss_kib": 994176
+    },
+    {
+      "seconds": 15.22,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11353.12M  free = 934.88M  (encrypted)",
+      "Pages occupied by compressor": 912177,
+      "Pageouts": 3217,
+      "Swapins": 5773592,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053424
+    },
+    {
+      "seconds": 16.28,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11353.12M  free = 934.88M  (encrypted)",
+      "Pages occupied by compressor": 911572,
+      "Pageouts": 3217,
+      "Swapins": 5773604,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053440
+    },
+    {
+      "seconds": 17.34,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11353.12M  free = 934.88M  (encrypted)",
+      "Pages occupied by compressor": 910762,
+      "Pageouts": 3217,
+      "Swapins": 5773640,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 18.4,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11353.12M  free = 934.88M  (encrypted)",
+      "Pages occupied by compressor": 909457,
+      "Pageouts": 3217,
+      "Swapins": 5773723,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 19.47,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11353.12M  free = 934.88M  (encrypted)",
+      "Pages occupied by compressor": 909042,
+      "Pageouts": 3217,
+      "Swapins": 5773819,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 20.53,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11353.12M  free = 934.88M  (encrypted)",
+      "Pages occupied by compressor": 904859,
+      "Pageouts": 3217,
+      "Swapins": 5773887,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 21.6,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11353.12M  free = 934.88M  (encrypted)",
+      "Pages occupied by compressor": 904520,
+      "Pageouts": 3217,
+      "Swapins": 5773935,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 22.66,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11353.12M  free = 934.88M  (encrypted)",
+      "Pages occupied by compressor": 904362,
+      "Pageouts": 3217,
+      "Swapins": 5773947,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 23.72,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11353.12M  free = 934.88M  (encrypted)",
+      "Pages occupied by compressor": 904304,
+      "Pageouts": 3217,
+      "Swapins": 5774083,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 24.78,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11345.12M  free = 942.88M  (encrypted)",
+      "Pages occupied by compressor": 903840,
+      "Pageouts": 3217,
+      "Swapins": 5774103,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 25.84,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11345.12M  free = 942.88M  (encrypted)",
+      "Pages occupied by compressor": 903726,
+      "Pageouts": 3217,
+      "Swapins": 5774111,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 26.9,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11345.12M  free = 942.88M  (encrypted)",
+      "Pages occupied by compressor": 903640,
+      "Pageouts": 3217,
+      "Swapins": 5774139,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 27.96,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11337.12M  free = 950.88M  (encrypted)",
+      "Pages occupied by compressor": 903520,
+      "Pageouts": 3217,
+      "Swapins": 5774147,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 29.02,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11337.12M  free = 950.88M  (encrypted)",
+      "Pages occupied by compressor": 903484,
+      "Pageouts": 3217,
+      "Swapins": 5774151,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 30.08,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11337.12M  free = 950.88M  (encrypted)",
+      "Pages occupied by compressor": 902288,
+      "Pageouts": 3217,
+      "Swapins": 5774168,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 31.14,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11337.12M  free = 950.88M  (encrypted)",
+      "Pages occupied by compressor": 902286,
+      "Pageouts": 3217,
+      "Swapins": 5774237,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 32.19,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11337.12M  free = 950.88M  (encrypted)",
+      "Pages occupied by compressor": 902140,
+      "Pageouts": 3217,
+      "Swapins": 5774273,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 33.26,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11337.12M  free = 950.88M  (encrypted)",
+      "Pages occupied by compressor": 902097,
+      "Pageouts": 3217,
+      "Swapins": 5774365,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 34.32,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11337.12M  free = 950.88M  (encrypted)",
+      "Pages occupied by compressor": 901903,
+      "Pageouts": 3217,
+      "Swapins": 5774369,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 35.38,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11337.12M  free = 950.88M  (encrypted)",
+      "Pages occupied by compressor": 901686,
+      "Pageouts": 3217,
+      "Swapins": 5774369,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 36.45,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11337.12M  free = 950.88M  (encrypted)",
+      "Pages occupied by compressor": 901627,
+      "Pageouts": 3217,
+      "Swapins": 5774377,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 37.5,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11337.12M  free = 950.88M  (encrypted)",
+      "Pages occupied by compressor": 901193,
+      "Pageouts": 3217,
+      "Swapins": 5774401,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 38.55,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11337.12M  free = 950.88M  (encrypted)",
+      "Pages occupied by compressor": 900911,
+      "Pageouts": 3217,
+      "Swapins": 5774413,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 39.61,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11337.12M  free = 950.88M  (encrypted)",
+      "Pages occupied by compressor": 900457,
+      "Pageouts": 3217,
+      "Swapins": 5774437,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 40.67,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11337.12M  free = 950.88M  (encrypted)",
+      "Pages occupied by compressor": 899161,
+      "Pageouts": 3217,
+      "Swapins": 5774505,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 41.73,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 899107,
+      "Pageouts": 3217,
+      "Swapins": 5774709,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 42.79,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 899035,
+      "Pageouts": 3217,
+      "Swapins": 5774709,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 43.85,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 898933,
+      "Pageouts": 3217,
+      "Swapins": 5774713,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 44.91,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 898877,
+      "Pageouts": 3217,
+      "Swapins": 5774713,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 45.96,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 898901,
+      "Pageouts": 3217,
+      "Swapins": 5774801,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 47.02,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 898798,
+      "Pageouts": 3217,
+      "Swapins": 5774809,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 48.08,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 898687,
+      "Pageouts": 3217,
+      "Swapins": 5774809,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 49.14,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 898594,
+      "Pageouts": 3217,
+      "Swapins": 5774821,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 50.2,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 898430,
+      "Pageouts": 3217,
+      "Swapins": 5774841,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 51.26,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 898129,
+      "Pageouts": 3217,
+      "Swapins": 5774857,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 52.32,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 897877,
+      "Pageouts": 3217,
+      "Swapins": 5774869,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 53.38,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 897198,
+      "Pageouts": 3217,
+      "Swapins": 5774873,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 54.43,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 897082,
+      "Pageouts": 3217,
+      "Swapins": 5774957,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 55.48,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 896634,
+      "Pageouts": 3217,
+      "Swapins": 5774965,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 56.54,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 896512,
+      "Pageouts": 3217,
+      "Swapins": 5774969,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 57.59,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 895732,
+      "Pageouts": 3217,
+      "Swapins": 5774985,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 58.66,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 895377,
+      "Pageouts": 3217,
+      "Swapins": 5774989,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 59.71,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 895372,
+      "Pageouts": 3217,
+      "Swapins": 5775001,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 60.77,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 895371,
+      "Pageouts": 3217,
+      "Swapins": 5775033,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 61.83,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 895269,
+      "Pageouts": 3217,
+      "Swapins": 5775037,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 62.88,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 895264,
+      "Pageouts": 3217,
+      "Swapins": 5775041,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 63.94,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 895236,
+      "Pageouts": 3217,
+      "Swapins": 5775041,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 64.99,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 895229,
+      "Pageouts": 3217,
+      "Swapins": 5775041,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 66.05,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 895218,
+      "Pageouts": 3217,
+      "Swapins": 5775057,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 67.11,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 895081,
+      "Pageouts": 3217,
+      "Swapins": 5775077,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 68.17,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 895122,
+      "Pageouts": 3217,
+      "Swapins": 5775221,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 69.23,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 895086,
+      "Pageouts": 3217,
+      "Swapins": 5775241,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 70.29,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 894600,
+      "Pageouts": 3217,
+      "Swapins": 5775332,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053648
+    },
+    {
+      "seconds": 71.34,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 893936,
+      "Pageouts": 3217,
+      "Swapins": 5775412,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053200
+    },
+    {
+      "seconds": 72.39,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 893784,
+      "Pageouts": 3217,
+      "Swapins": 5775420,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053200
+    },
+    {
+      "seconds": 73.45,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 893733,
+      "Pageouts": 3217,
+      "Swapins": 5775432,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1053200
+    },
+    {
+      "seconds": 74.52,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 890064,
+      "Pageouts": 3217,
+      "Swapins": 5775460,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 1129744
+    },
+    {
+      "seconds": 75.56,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 163389,
+      "Pageouts": 3217,
+      "Swapins": 5775480,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 0
+    },
+    {
+      "seconds": 76.62,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 163389,
+      "Pageouts": 3217,
+      "Swapins": 5775484,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 0
+    },
+    {
+      "seconds": 77.68,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 163371,
+      "Pageouts": 3217,
+      "Swapins": 5775484,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 0
+    },
+    {
+      "seconds": 78.74,
+      "phase": "idle",
+      "swap": "total = 12288.00M  used = 11329.12M  free = 958.88M  (encrypted)",
+      "Pages occupied by compressor": 163368,
+      "Pageouts": 3217,
+      "Swapins": 5775484,
+      "Swapouts": 7283033,
+      "image_worker_rss_kib": 0
+    }
+  ]
+}

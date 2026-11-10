@@ -1,9 +1,14 @@
+import { fetchResponse } from "../lib/http.js";
+import { deferDelivery } from "../lib/users.js";
+import { fetchJson } from "../lib/http.js";
+import { atomicWrite } from "../lib/storage.js";
+import { serviceHeaders } from "../lib/security.js";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import fs from "fs";
 import path from "path";
 import { load as yamlLoad, dump as yamlDump } from "js-yaml";
-import { checkPermission, getCurrentUserId } from "../lib/users.js";
+import { checkPermission, getCurrentUserId, userHasPermission } from "../lib/users.js";
 import { mapWmoCodeToCondition, resolveTargetDayIndex, formatDayLabel, geocodeLocation } from "../weather-helpers.js";
 import Parser from "rss-parser";
 
@@ -25,7 +30,7 @@ function loadRoutinesConfig() {
 
 function saveRoutinesConfig(routines) {
   const yaml = yamlDump({ routines });
-  fs.writeFileSync(path.resolve(ROUTINES_FILE), yaml, "utf-8");
+  atomicWrite(path.resolve(ROUTINES_FILE), yaml);
 }
 
 function slugify(name) {
@@ -61,7 +66,10 @@ function validateAction(a) {
 // ─── Action-Ausführung ────────────────────────────────────────────────────────
 
 // --- Telegram-Helfer ---
-async function sendTelegramMessage(username, text, source) {
+async function sendTelegramMessage(username, text, source, signal) {
+  const message=source ? `${source}:\n${text}` : text;
+  if(deferDelivery(username,message)) return {deferred:true};
+  if(message.length>4096) throw new Error("Telegram-Nachricht länger als 4096 Zeichen");
   let usersConfig = {};
   try {
     const configPath = path.resolve("/workspace/users.json");
@@ -74,13 +82,11 @@ async function sendTelegramMessage(username, text, source) {
   const userObj = usersConfig.users?.[username];
   const chatId = userObj?.chat_id;
   if (!chatId) throw new Error(`Keine Chat-ID fuer User '${username}' gefunden`);
-  const message = source ? `*${source}:\n${text}` : text;
-  const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+  const data = await fetchJson(`https://api.telegram.org/bot${botToken}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: "HTML" }),
-  });
-  const data = await response.json();
+    body: JSON.stringify({ chat_id: chatId, text: message }),
+  }, {signal,timeout:30000});
   if (!data.ok) throw new Error(data.description || "Telegram API Fehler");
   return { chat_id: chatId };
 }
@@ -109,7 +115,7 @@ async function fetchWeatherData(action, day, location) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
   let response;
-  try { response = await fetch(url, { signal: controller.signal }); } finally { clearTimeout(timeout); }
+  try { response = await fetchResponse(url, { signal: controller.signal }); } finally { clearTimeout(timeout); }
   if (!response.ok) throw new Error("Wetterdaten momentan nicht verfuegbar.");
   const data = await response.json();
 
@@ -149,7 +155,7 @@ async function fetchFeedWithTimeout(feedUrl, timeoutMs = 10000) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(feedUrl, { signal: controller.signal });
+    const response = await fetchResponse(feedUrl, { signal: controller.signal });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const xml = await response.text();
     return await parser.parseString(xml);
@@ -183,13 +189,17 @@ async function fetchNewsHeadlines(source, count) {
 }
 
 // --- Main-Executor ---
-async function executeRoutineAction(action) {
+async function executeRoutineAction(action, signal) {
+  const permissions = { ha: "smart_home", music: "music", tts: "music", weather: "weather", news: "news", send_message: "admin" };
+  const permission = permissions[action.type];
+  if (!permission || !userHasPermission(getCurrentUserId(), permission)) return { success: false, error: "Keine Berechtigung für Routineaktion" };
+  if (action.send_to && action.send_to !== getCurrentUserId() && !userHasPermission(getCurrentUserId(), "admin")) return { success: false, error: "Empfänger nicht erlaubt" };
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30000);
   try {
     switch (action.type) {
       case "ha": {
-        const resp = await fetch(`${HA_SERVICE_URL}/call_service`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ domain: action.domain, service: action.service, entity_id: action.entity_id, data: action.data || {} }), signal: controller.signal });
+        const resp = await fetchResponse(`${HA_SERVICE_URL}/call_service`, { method: "POST", headers: serviceHeaders({ "Content-Type": "application/json" }), body: JSON.stringify({ domain: action.domain, service: action.service, entity_id: action.entity_id, data: action.data || {} }), signal: controller.signal });
         if (!resp.ok) throw new Error(`HA ${resp.status}`);
         return { success: true };
       }
@@ -199,12 +209,12 @@ async function executeRoutineAction(action) {
         else if (action.action === "stop") { url = `${RIBO_SERVICE_URL}/music/stop`; }
         else if (action.action === "volume") { url = `${RIBO_SERVICE_URL}/music/volume`; if (action.volume != null) body.volume = action.volume; }
         else throw new Error(`Unknown music action: ${action.action}`);
-        const resp = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: controller.signal });
+        const resp = await fetchResponse(url, { method: "POST", headers: serviceHeaders({ "Content-Type": "application/json" }), body: JSON.stringify(body), signal: controller.signal });
         if (!resp.ok) throw new Error(`Music ${resp.status}`);
         return { success: true };
       }
       case "tts": {
-        const resp = await fetch(`${RIBO_SERVICE_URL}/tts/speak`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: action.text }), signal: controller.signal });
+        const resp = await fetchResponse(`${RIBO_SERVICE_URL}/tts/speak`, { method: "POST", headers: serviceHeaders({ "Content-Type": "application/json" }), body: JSON.stringify({ text: action.text }), signal: controller.signal });
         if (!resp.ok) throw new Error(`TTS ${resp.status}`);
         return { success: true };
       }
@@ -212,19 +222,19 @@ async function executeRoutineAction(action) {
         const wAction = action.weather_action || (action.day ? "forecast" : "current");
         const text = await fetchWeatherData(wAction, action.day, action.location);
         if (action.send_to) {
-          await sendTelegramMessage(action.send_to, text, "Wetter");
+          await sendTelegramMessage(action.send_to, text, "Wetter", signal);
         }
         return { success: true, text };
       }
       case "news": {
         const text = await fetchNewsHeadlines(action.source, action.count);
         if (action.send_to) {
-          await sendTelegramMessage(action.send_to, text, "Nachrichten");
+          await sendTelegramMessage(action.send_to, text, "Nachrichten", signal);
         }
         return { success: true, text };
       }
       case "send_message": {
-        await sendTelegramMessage(action.user, action.text, action.source || "Routine");
+        await sendTelegramMessage(action.user, action.text, action.source || "Routine", signal);
         return { success: true };
       }
       default: throw new Error(`Unknown type: ${action.type}`);
@@ -268,10 +278,11 @@ export default defineTool({
       send_to: Type.Optional(Type.String({ description: "Wenn gesetzt: Ergebnis per Telegram an diesen User senden (weather, news)" })),
     }), { description: "Liste der Aktionen (nur create)" })),
   }),
-  execute: async (_toolCallId, { action, routine_name, actions }) => {
+  execute: async (_toolCallId, { action, routine_name, actions }, signal) => {
     const denied = checkPermission("routines");
     if (denied) return denied;
     try {
+      if (["create", "delete"].includes(action) && !userHasPermission(getCurrentUserId(), "admin")) throw new Error("Globale Routinen ändern nur Admins");
       if (action === "create") {
         if (!routine_name?.trim()) return { content: [{ type: "text", text: JSON.stringify({ error: "routine_name erforderlich" }) }], details: {} };
         if (!Array.isArray(actions) || actions.length === 0) return { content: [{ type: "text", text: JSON.stringify({ error: "Mindestens eine Action erforderlich" }) }], details: {} };
@@ -280,6 +291,7 @@ export default defineTool({
           if (err) return { content: [{ type: "text", text: JSON.stringify({ error: err }) }], details: {} };
         }
         const config = loadRoutinesConfig();
+        if(config.error && fs.existsSync(ROUTINES_FILE)) throw new Error("Routinen-Konfiguration beschädigt; Original bleibt erhalten");
         const routines = config.error ? {} : config.routines;
         const key = slugify(routine_name);
         if (!key) return { content: [{ type: "text", text: JSON.stringify({ error: "Ungueltiger Routinen-Name" }) }], details: {} };
@@ -306,7 +318,7 @@ export default defineTool({
         let ok = 0, fail = 0;
         const errors = [];
         for (const a of acts) {
-          const r = await executeRoutineAction(a);
+          const r = await executeRoutineAction(a, signal);
           if (r.success) ok++;
           else { fail++; errors.push(`${a.type}: ${r.error}`); }
         }

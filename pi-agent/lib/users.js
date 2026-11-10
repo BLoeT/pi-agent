@@ -4,31 +4,42 @@
  */
 import fs from "fs";
 import path from "path";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { readJson, atomicWrite, assertSafePath } from "./storage.js";
+import { validUserId } from "./security.js";
 
 const USERS_CONFIG_PATH = process.env.USERS_CONFIG_PATH || path.join("/workspace", "users.json");
 
 // Current user context (set per request, used by tools)
-let _currentUserId = null;
-
+const userContext = new AsyncLocalStorage();
+export function runAsUser(userId, callback, options = {}) {
+  if (!validUserId(userId)) throw new Error("Ungültiger Nutzer");
+  const parent = userContext.getStore();
+  const context = parent?.userId === userId && options.scheduled === undefined
+    ? {...parent,signal:options.signal || parent.signal,...(options.attachment !== undefined ? {attachment:options.attachment} : {})} : {userId, scheduled: Boolean(options.scheduled), requestId: options.requestId, attachment:options.attachment, deliveries: [],signal:options.signal};
+  return userContext.run(context, callback);
+}
+export function deferDelivery(userId, text) {
+  const context = userContext.getStore();
+  if (!context?.scheduled) return false;
+  if (userId !== context.userId) throw new Error("Geplante Antworten werden nur an den zugehörigen Nutzer zugestellt");
+  const value=String(text).trim();
+  if (value && !context.deliveries.includes(value)) context.deliveries.push(value);
+  return true;
+}
+export function getToolSignal() { return userContext.getStore()?.signal; }
+export function getDeferredDeliveries() { return userContext.getStore()?.deliveries || []; }
 export function loadUsersConfig() {
-  try {
-    if (!fs.existsSync(USERS_CONFIG_PATH)) return { users: {}, groups: {} };
-    const content = fs.readFileSync(USERS_CONFIG_PATH, "utf-8");
-    return JSON.parse(content);
-  } catch (e) {
-    console.error("⚠️ Failed to load users.json:", e.message);
-    return { users: {}, groups: {} };
-  }
+  const config = readJson(USERS_CONFIG_PATH, {users:{},groups:{}});
+  if (!config.users || typeof config.users !== "object") throw new Error("Ungültige Nutzerkonfiguration");
+  return config;
 }
-
-export function saveUsersConfig(config) {
-  fs.writeFileSync(USERS_CONFIG_PATH, JSON.stringify(config, null, 2), "utf-8");
-}
+export function saveUsersConfig(config) { atomicWrite(USERS_CONFIG_PATH, JSON.stringify(config,null,2)); }
 
 export function getUserByName(username) {
   const config = loadUsersConfig();
   const userId = username?.toLowerCase();
-  if (!userId || !config.users[userId]) return null;
+  if (!validUserId(userId) || !Object.hasOwn(config.users, userId)) return null;
   return { id: userId, ...config.users[userId] };
 }
 
@@ -43,18 +54,21 @@ export function getUserByChatId(chatId) {
 export function userHasPermission(userId, permission) {
   const user = getUserByName(userId);
   if (!user) return false;
-  return user.permissions.includes(permission);
+  return Array.isArray(user.permissions) && user.permissions.includes(permission);
 }
 
 export function getUserWorkspacePath(userId) {
-  return path.join("/workspace", "users", userId);
+  if (!validUserId(userId)) throw new Error("Ungültiger Nutzer");
+  const base = path.join("/workspace", "users", userId);
+  try { if(fs.lstatSync(base).isSymbolicLink()) throw new Error("Nutzerordner darf kein Symlink sein"); } catch(error) {if(error.code!=="ENOENT") throw error;}
+  return base;
 }
 
 export function getUserGroups(userId) {
   const config = loadUsersConfig();
   const user = config.users[userId];
   if (!user) return [];
-  return (user.groups || []).map(groupId => ({
+  return (user.groups || []).filter(groupId => validUserId(groupId) && Object.hasOwn(config.groups || {},groupId)).map(groupId => ({
     id: groupId,
     ...config.groups[groupId],
   }));
@@ -62,13 +76,16 @@ export function getUserGroups(userId) {
 
 export function getSharedGroupPaths(userId) {
   const groups = getUserGroups(userId);
-  return groups.map(g => ({
+  return groups.map(g => {
+    assertSafePath(path.join("/workspace","shared",g.id,"calendar.ics"));
+    assertSafePath(path.join("/workspace","shared",g.id,"lists"));
+    return ({
     id: g.id,
     description: g.description,
     calendarPath: g.shared_calendar ? path.join("/workspace", "shared", g.id, "calendar.ics") : null,
     listsDir: path.join("/workspace", "shared", g.id, "lists"),
     sharedLists: g.shared_lists || [],
-  }));
+  });});
 }
 
 export function ensureUserWorkspace(userId) {
@@ -82,21 +99,15 @@ export function ensureUserWorkspace(userId) {
     path.join(base, "memory"),
     path.join(base, "projects"),
   ];
-  if (userHasPermission(userId, "godot")) {
-    dirs.push(path.join(base, "godot-project"));
-  }
   for (const dir of dirs) {
     fs.mkdirSync(dir, { recursive: true });
   }
 }
 
-export function setCurrentUser(userId) {
-  _currentUserId = userId;
-  if (userId) ensureUserWorkspace(userId);
-}
-
 export function getCurrentUserId() {
-  return _currentUserId || "enrico";
+  const id = userContext.getStore()?.userId;
+  if (!id) throw new Error("Nutzerkontext fehlt");
+  return id;
 }
 
 export function getCurrentUserWorkspace() {
@@ -112,3 +123,7 @@ export function checkPermission(toolName) {
   }
   return null;
 }
+
+export function getExecutionMeta() { const current = userContext.getStore(); return {scheduled:Boolean(current?.scheduled),requestId:current?.requestId}; }
+
+export function getCurrentAttachment() { return userContext.getStore()?.attachment; }

@@ -1,43 +1,41 @@
-FROM node:24-alpine
+FROM node:24-alpine@sha256:a34ab6d7f6f4813f4d0c5469d74685604b962fbdbf5793a7bc7b4998ecb867c8
 RUN apk update && apk upgrade --no-cache
 RUN apk add --no-cache tzdata
-RUN npm install -g npm@latest
 # Supply-Chain: nur Paket-Versionen >= 5 Tage alt (frisch kompromittierte meiden). Braucht npm 11.6+.
 RUN npm config set min-release-age 5
+ARG RIBO_UID=501
+ARG RIBO_GID=20
 WORKDIR /app
 
 # Install dependencies (exakt gepinnte Versionen — reproduzierbar, keine Auto-Updates)
-RUN npm init -y && \
-    npm pkg set type=module && \
-    npm install --ignore-scripts --save-exact \
-      @earendil-works/pi-coding-agent@1.3.0 \
-      @earendil-works/pi-server \
-      @sinclair/typebox@0.34.52 \
-      express@5.3.0 \
-      rss-parser@3.13.0 \
-      node-ical@0.27.3 \
-      js-yaml@5.5.0 \
-      archiver@8.0.0  \
-      undici@8.12.3 \
-      node-telegram-bot-api@2.1.0
+COPY pi-agent/package.json pi-agent/package-lock.json pi-agent/.npmrc ./
+RUN npm ci --omit=dev --ignore-scripts
+COPY shared/ /shared/
 # Copy application code
-COPY server.js .
-COPY weather-helpers.js .
-COPY lib/ ./lib/
-COPY tools/ ./tools/
-COPY public/ ./public/
+COPY pi-agent/server.js pi-agent/app.js pi-agent/config.js ./
+COPY pi-agent/http/ ./http/
+COPY pi-agent/services/ ./services/
+COPY pi-agent/weather-helpers.js .
+COPY pi-agent/lib/ ./lib/
+COPY pi-agent/tools/ ./tools/
+COPY pi-agent/plugins/ ./plugins/
+COPY pi-agent/public/ ./public/
+COPY pi-agent/tests/ ./tests/
 
 # Copy Ollama provider config + system prompt
-RUN mkdir -p /root/.pi/agent && mkdir -p /workspace
-COPY models.json /root/.pi/agent/models.json
-COPY skills/ /root/.pi/agent/skills/
-COPY settings.json /root/.pi/agent/settings.json
-COPY pi-ollama-main/ /root/.pi/agent/extensions/pi-ollama/
-RUN cd /root/.pi/agent/extensions/pi-ollama/ \
-    && npm install --ignore-scripts \
-    && npm install -D vitest@5.0.5 --ignore-scripts \
-    && npm rebuild esbuild protobufjs
-COPY SYSTEM.md /root/.pi/agent/SYSTEM.md
+RUN mkdir -p /home/node/.pi/agent && mkdir -p /workspace
+COPY pi-agent/models.json /home/node/.pi/agent/models.json
+COPY pi-agent/skills/ /home/node/.pi/agent/skills/
+COPY pi-agent/settings.json /home/node/.pi/agent/settings.json
+COPY pi-agent/pi-ollama-main/ /home/node/.pi/agent/extensions/pi-ollama/
+# The TypeScript extension resolves the same audited runtime dependencies.
+RUN ln -s /app/node_modules /home/node/.pi/agent/extensions/pi-ollama/node_modules
+COPY pi-agent/SYSTEM.md /home/node/.pi/agent/SYSTEM.md
 
+# Runtime never installs packages; discard the package manager and its dependency tree.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+RUN chown -R ${RIBO_UID}:${RIBO_GID} /home/node
+ENV HOME=/home/node
+USER ${RIBO_UID}:${RIBO_GID}
 EXPOSE 8080
 CMD ["node", "/app/server.js"]

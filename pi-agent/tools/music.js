@@ -1,3 +1,5 @@
+import { fetchResponse } from "../lib/http.js";
+import { serviceHeaders } from "../lib/security.js";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { checkPermission } from "../lib/users.js";
@@ -21,25 +23,25 @@ export default defineTool({
     try {
       switch (action) {
         case "play": {
-          const resp = await fetch(`${RIBO_SERVICE_URL}/music/play`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
+          const resp = await fetchResponse(`${RIBO_SERVICE_URL}/music/play`, {
+            method: "POST", signal: AbortSignal.timeout(30000), headers: serviceHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({ station, url }),
           });
           return { content: [{ type: "text", text: JSON.stringify(await resp.json()) }], details: {} };
         }
         case "stop": {
-          const resp = await fetch(`${RIBO_SERVICE_URL}/music/stop`, { method: "POST" });
+          const resp = await fetchResponse(`${RIBO_SERVICE_URL}/music/stop`, { method: "POST", signal: AbortSignal.timeout(30000), headers: serviceHeaders() });
           return { content: [{ type: "text", text: JSON.stringify(await resp.json()) }], details: {} };
         }
         case "volume": {
-          const resp = await fetch(`${RIBO_SERVICE_URL}/music/volume`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
+          const resp = await fetchResponse(`${RIBO_SERVICE_URL}/music/volume`, {
+            method: "POST", signal: AbortSignal.timeout(30000), headers: serviceHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({ volume }),
           });
           return { content: [{ type: "text", text: JSON.stringify(await resp.json()) }], details: {} };
         }
         case "status": {
-          const resp = await fetch(`${RIBO_SERVICE_URL}/music/status`);
+          const resp = await fetchResponse(`${RIBO_SERVICE_URL}/music/status`, { headers: serviceHeaders(), signal: AbortSignal.timeout(30000) });
           return { content: [{ type: "text", text: JSON.stringify(await resp.json()) }], details: {} };
         }
         default:

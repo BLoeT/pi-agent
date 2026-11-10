@@ -3,6 +3,6 @@
   "defaultModel": "qwen3.8-27b-64k:latest",
   "defaultThinkingLevel": "low",
   "modelThinkingLevels": {
-    "ollama/qwen3.8-27b-64k:latest": "xhigh"
+    "ollama/qwen3.8-27b-64k:latest": "low"
   }
 }

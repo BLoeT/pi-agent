@@ -1,3 +1,4 @@
+import { validUserId } from "../lib/security.js";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { getCurrentUserId, userHasPermission, loadUsersConfig, saveUsersConfig, ensureUserWorkspace } from "../lib/users.js";
@@ -30,6 +31,7 @@ export default defineTool({
         case "add_user": {
           if (!username?.trim()) return { content: [{ type: "text", text: JSON.stringify({ error: "username erforderlich" }) }], details: {} };
           const userId = username.trim().toLowerCase();
+          if (!validUserId(userId)) throw new Error("Ungültiger Nutzername");
           if (config.users[userId]) return { content: [{ type: "text", text: JSON.stringify({ error: `"${userId}" existiert bereits` }) }], details: {} };
           const defaultPerms = permissions || ["calendar", "notes", "lists", "imagegen", "weather", "news", "search", "weekplanner", "flashcards"];
           config.users[userId] = { name: name || username.charAt(0).toUpperCase() + username.slice(1), chat_id: chat_id || null, permissions: defaultPerms, groups: groups || [] };
@@ -40,6 +42,7 @@ export default defineTool({
         case "remove_user": {
           if (!username?.trim()) return { content: [{ type: "text", text: JSON.stringify({ error: "username erforderlich" }) }], details: {} };
           const userId = username.trim().toLowerCase();
+          if (!validUserId(userId)) throw new Error("Ungültiger Nutzername");
           if (!config.users[userId]) return { content: [{ type: "text", text: JSON.stringify({ error: `"${userId}" nicht gefunden` }) }], details: {} };
           if (userId === currentUser) return { content: [{ type: "text", text: JSON.stringify({ error: "Kann sich nicht selbst löschen" }) }], details: {} };
           const removedName = config.users[userId].name;
@@ -50,6 +53,7 @@ export default defineTool({
         case "edit_user": {
           if (!username?.trim()) return { content: [{ type: "text", text: JSON.stringify({ error: "username erforderlich" }) }], details: {} };
           const userId = username.trim().toLowerCase();
+          if (!validUserId(userId)) throw new Error("Ungültiger Nutzername");
           if (!config.users[userId]) return { content: [{ type: "text", text: JSON.stringify({ error: `"${userId}" nicht gefunden` }) }], details: {} };
           const changes = [];
           if (name) { config.users[userId].name = name; changes.push(`Name: ${name}`); }

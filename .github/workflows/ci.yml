@@ -1,0 +1,31 @@
+name: Project checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      RIBO_INTERNAL_TOKEN: synthetic-ci-token-0000000000000000000000
+      RIBO_WEB_PASSWORD: synthetic-ci-browser-password
+      TELEGRAM_BOT_TOKEN: synthetic-not-used-by-offline-tests
+      ANTHROPIC_API_KEY: ""
+      TAVILY_API_KEY: ""
+    steps:
+      - name: Check out source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Check syntax, build and run isolated tests
+        run: make verify

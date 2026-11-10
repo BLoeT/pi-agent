@@ -1,6 +1,8 @@
+import { readJson, atomicWrite } from "../lib/storage.js";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import fs from "fs";
+import { safeName, resolveWithin } from "../lib/security.js";
 import path from "path";
 import { checkPermission } from "../lib/users.js";
 import { getFlashcardsDir } from "../lib/helpers.js";
@@ -9,20 +11,20 @@ const SM2_INTERVALS = [0, 1, 3, 7, 14, 30, 60];
 
 function getDeckPath(deckName) {
   const dir = getFlashcardsDir();
-  const filename = deckName.trim().toLowerCase().replace(/\s+/g, '-');
-  return path.join(dir, `${filename}.json`);
+  const filename = safeName(deckName).toLowerCase().replace(/\s+/g, '-');
+  return resolveWithin(dir, `${filename}.json`);
 }
 
 function readDeck(deckName) {
   const filePath = getDeckPath(deckName);
   if (!fs.existsSync(filePath)) return null;
-  return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  return readJson(filePath, null);
 }
 
 function writeDeck(deck) {
   const dir = getFlashcardsDir();
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(getDeckPath(deck.name), JSON.stringify(deck, null, 2), "utf-8");
+  atomicWrite(getDeckPath(deck.name), JSON.stringify(deck, null, 2));
 }
 
 function getAllDecks() {
@@ -30,7 +32,7 @@ function getAllDecks() {
   fs.mkdirSync(dir, { recursive: true });
   return fs.readdirSync(dir).filter(f => f.endsWith('.json')).map(f => {
     try {
-      const c = JSON.parse(fs.readFileSync(path.join(dir, f), "utf-8"));
+      const c = readJson(resolveWithin(dir,f),null);
       return { name: c.name, cards: c.cards?.length || 0 };
     } catch (_) { return null; }
   }).filter(Boolean);
@@ -94,8 +96,12 @@ export default defineTool({
         case "generate_cards": {
           if (!deck || !cards?.length) return { content: [{ type: "text", text: JSON.stringify({ error: "deck und cards erforderlich" }) }], details: {} };
           let deckData = readDeck(deck) || { name: deck.trim(), cards: [], created_at: new Date().toISOString() };
-          const existingFronts = new Set(deckData.cards.map(c => c.front.toLowerCase()));
-          const newCards = cards.filter(c => c.front && c.back && !existingFronts.has(c.front.trim().toLowerCase()));
+          const existingFronts = new Set(deckData.cards.map(c => c.front.trim().toLowerCase()));
+          const newCards = cards.filter(c => {
+            const key=c.front?.trim().toLowerCase();
+            if(!key || !c.back?.trim() || existingFronts.has(key)) return false;
+            existingFronts.add(key); return true;
+          });
           for (const card of newCards) {
             deckData.cards.push({ id: generateCardId(), front: card.front.trim(), back: card.back.trim(), level: 0, streak: 0, next_review: new Date().toISOString(), created_at: new Date().toISOString() });
           }
